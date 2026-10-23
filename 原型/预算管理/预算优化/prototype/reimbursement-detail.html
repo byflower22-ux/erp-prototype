@@ -1,0 +1,256 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>报销申请审批详情</title><style>
+    :root { --nav:#1f3156; --nav-hover:#2c4472; --blue:#2864ee; --blue-deep:#1f4fc8; --blue-soft:#edf3ff; --ink:#18243a; --muted:#6d7a91; --line:#e3e9f2; --page:#f5f7fb; --green:#147a60; --green-soft:#e9f8f2; --amber:#9a6500; --amber-soft:#fff6e4; --red:#c13c4a; --red-soft:#fff0f1; --purple:#6d50cc; --purple-soft:#f2efff; }
+    * { box-sizing:border-box; }
+    body { min-width:1180px; margin:0; color:var(--ink); background:var(--page); font:14px/1.45 "Microsoft YaHei","PingFang SC",Arial,sans-serif; }
+    button,input,select,textarea { font:inherit; }
+    button { cursor:pointer; }
+    .topbar { position:fixed; z-index:10; top:0; right:0; left:0; display:flex; align-items:center; justify-content:space-between; height:62px; padding:0 25px 0 22px; background:#fff; border-bottom:1px solid var(--line); }
+    .brand { display:flex; gap:11px; align-items:center; color:#273959; font-size:18px; font-weight:700; }
+    .brand-mark { display:grid; width:25px; height:25px; place-items:center; color:#fff; background:#e75159; border-radius:7px 12px 7px 12px; transform:rotate(45deg); }
+    .brand-mark span { font-size:13px; transform:rotate(-45deg); }
+    .top-actions { display:flex; gap:19px; align-items:center; color:var(--muted); font-size:12px; }
+    .avatar { display:grid; width:29px; height:29px; place-items:center; color:#fff; background:#e05358; border-radius:50%; }
+    .sidebar { position:fixed; z-index:5; top:62px; bottom:0; left:0; width:204px; padding:16px 12px; color:#cbd5e7; background:var(--nav); }
+    .side-title { display:flex; align-items:center; justify-content:space-between; padding:5px 11px 13px; color:#fff; font-size:13px; font-weight:700; }
+    .nav-item { display:flex; gap:10px; align-items:center; min-height:37px; padding:0 12px; color:#c2cde0; border-radius:6px; font-size:13px; }
+    .nav-item.active { color:#fff; background:var(--nav-hover); font-weight:700; }
+    .nav-sub { margin:3px 0 4px 37px; padding:7px 0; color:#81a9fa; font-size:13px; }
+    .nav-sub.current { color:#fff; font-weight:700; }
+    .workspace { min-height:calc(100vh - 62px); margin:62px 0 0 204px; }
+    .crumb { display:flex; gap:9px; align-items:center; height:44px; padding:0 27px; color:var(--muted); background:#fff; border-bottom:1px solid var(--line); font-size:12px; }
+    .crumb strong { color:var(--ink); }
+    .content { max-width:1590px; padding:19px 27px 52px; }
+    .topline { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:15px; }
+    .topline-actions { display:flex; gap:9px; align-items:center; }
+    .page-title { display:flex; gap:10px; align-items:center; color:#263854; font-size:19px; font-weight:700; }
+    .page-title small { padding:3px 7px; color:#365fc4; background:var(--blue-soft); border-radius:4px; font-size:11px; font-weight:600; }
+    .page-subtitle { margin-top:4px; color:#7b899d; font-size:12px; }
+    .flow-state { display:inline-flex; gap:6px; align-items:center; margin-top:2px; padding:6px 10px; color:#8f640a; background:var(--amber-soft); border:1px solid #f4dfb4; border-radius:99px; font-size:12px; }
+    .flow-state::before { width:7px; height:7px; background:currentColor; border-radius:50%; content:""; }
+    .layout { display:grid; grid-template-columns:minmax(0,7fr) minmax(320px,3fr); gap:16px; align-items:start; }
+    .layout.is-collapsed { display:block; }
+    .layout > .review-drawer { position:sticky; top:78px; display:none; min-width:0; max-height:calc(100vh - 94px); overflow-y:auto; padding:0 2px 12px 0; }
+    .layout > .review-drawer.show { display:block; }
+    .drawer-head { display:flex; align-items:center; justify-content:space-between; margin:0 0 11px; padding:0 2px; color:#3a4b66; font-size:13px; font-weight:700; }
+    .drawer-head span { color:#7b899f; font-size:11px; font-weight:400; }
+    .drawer-close { display:grid; width:27px; height:27px; place-items:center; color:#6c7d94; background:#fff; border:1px solid #dce4ef; border-radius:5px; font-size:18px; line-height:1; }
+    .drawer-close:hover { color:var(--blue); border-color:#a9c2f2; }
+    .card { margin-bottom:16px; background:#fff; border:1px solid var(--line); border-radius:9px; box-shadow:0 7px 19px rgba(27,49,93,.045); }
+    .card-head { display:flex; align-items:center; justify-content:space-between; min-height:52px; padding:0 17px; border-bottom:1px solid var(--line); }
+    .card-title { display:flex; gap:9px; align-items:center; color:#2b3b56; font-size:14px; font-weight:700; }
+    .num { display:grid; width:22px; height:22px; place-items:center; color:var(--blue); background:var(--blue-soft); border-radius:50%; font-size:11px; }
+    .card-note { color:#8090a4; font-size:11px; }
+    .card-body { padding:15px 17px; }
+    .overview-grid { display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:12px 25px; }
+    .field-label { margin-bottom:4px; color:#8390a3; font-size:11px; }
+    .field-value { color:#34445e; font-size:13px; }
+    .field-value strong { color:#283a58; font-size:14px; }
+    .money { color:#d74744; font-size:20px; font-weight:700; }
+    .document-context { display:flex; flex-wrap:wrap; gap:8px 22px; margin-bottom:15px; padding-bottom:12px; color:#6c7c92; border-bottom:1px solid #edf1f5; font-size:12px; }
+    .document-context strong { color:#34445e; }
+    .document-section + .document-section { margin-top:16px; padding-top:15px; border-top:1px solid #edf1f5; }
+    .document-section-title { margin-bottom:11px; color:#34445e; font-size:13px; font-weight:700; }
+    .document-section-title::before { display:inline-block; width:3px; height:13px; margin-right:7px; vertical-align:-2px; content:""; background:var(--blue); }
+    .document-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 25px; }
+    .document-field { min-width:0; }
+    .document-field.wide { grid-column:1 / -1; }
+    .document-field label { display:block; margin-bottom:4px; color:#8390a3; font-size:11px; }
+    .document-field .readonly-value { min-height:31px; padding:6px 9px; color:#34445e; background:#f8fafc; border:1px solid #e1e7ef; border-radius:4px; font-size:13px; overflow-wrap:anywhere; }
+    .document-field .readonly-value { min-height:0; padding:0; background:transparent; border:0; }
+    .document-field .readonly-value.tagged { display:flex; gap:6px; align-items:center; }
+    .todo-approval-control { display:flex; gap:8px; align-items:center; min-height:34px; }
+    .todo-approval-control .application-form-control { height:34px; padding:0 10px; color:#23324a; background:#fff; border:1px solid #d8e0ec; border-radius:5px; outline:none; transition:.15s ease; }
+    .todo-approval-control .application-form-control:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(40,100,238,.1); }
+    .todo-approval-control select { width:160px; }.todo-approval-control input { width:170px; }.todo-approval-control input[hidden] { display:none; }
+    .expense-panel .cell-input { width:100%; min-width:85px; height:29px; padding:0 7px; color:#34435c; background:#fff; border:1px solid #dce3ed; border-radius:4px; outline:none; }.expense-panel .cell-input:focus { border-color:var(--blue); }.required-mark { margin-right:3px; color:#d14b51; }
+    .project-tag { display:inline-flex; align-items:center; min-height:20px; padding:0 6px; color:#365fc4; background:var(--blue-soft); border-radius:3px; font-size:11px; }
+    .project-tag { min-height:0; padding:0; background:transparent; border-radius:0; font-size:13px; }
+    .detail-link { padding:0; color:var(--blue); background:transparent; border:0; font-size:12px; }
+    .detail-link, .drawer-close { display:none !important; }
+    .expense-group { overflow:hidden; margin-top:12px; border:1px solid #dce5f0; border-radius:7px; }
+    .expense-group:first-child { margin-top:0; }
+    .expense-head { display:flex; gap:10px; align-items:center; min-height:45px; padding:0 13px; background:#f8fbff; border-bottom:1px solid #e3eaf3; }
+    .expense-tag { padding:3px 6px; color:var(--blue); background:var(--blue-soft); border-radius:4px; font-size:10px; }
+    .expense-head strong { color:#34445e; font-size:13px; }
+    .expense-head span:not(.expense-tag) { color:#8190a4; font-size:11px; }
+    .expense-amount { margin-left:auto; color:#374963; font-size:13px; font-weight:700; }
+    .expense-tabs { display:flex; gap:18px; min-height:38px; padding:0 13px; border-bottom:1px solid #edf0f5; }
+    .expense-tabs button { position:relative; padding:0; color:#79889e; background:transparent; border:0; font-size:12px; }
+    .expense-tabs button.active { color:var(--blue); font-weight:700; }
+    .expense-tabs button.active::after { position:absolute; right:0; bottom:-1px; left:0; height:2px; background:var(--blue); content:""; }
+    .expense-panel { padding:12px 13px; }
+    .expense-panel[hidden] { display:none; }
+    .mini-table { width:100%; border-collapse:collapse; }
+    .mini-table th { padding:0 8px 8px; color:#8090a3; font-size:11px; font-weight:600; text-align:left; }
+    .mini-table td { padding:9px 8px; color:#475872; border-top:1px solid #edf1f5; font-size:12px; }
+    .mini-table td:first-child,.mini-table th:first-child { padding-left:0; }
+    .mini-table td:last-child,.mini-table th:last-child { padding-right:0; }
+    .invoice-row { display:grid; grid-template-columns:30px 1.35fr .8fr .8fr 100px; gap:10px; align-items:center; padding:10px 0; border-top:1px solid #edf1f5; }
+    .invoice-row:first-child { padding-top:0; border-top:0; }
+    .file-icon { display:grid; width:28px; height:28px; place-items:center; color:#df5650; background:#fff0ee; border-radius:5px; font-size:10px; font-weight:700; }
+    .invoice-row strong,.attachment-row strong { display:block; color:#40506a; font-size:12px; }
+    .invoice-row small,.attachment-row small { display:block; margin-top:2px; color:#8a98aa; font-size:11px; }
+    .ok { color:var(--green); font-size:11px; }
+    .warning { color:var(--amber); font-size:11px; }
+    .attachment-row { display:flex; gap:10px; align-items:center; padding:10px 0; border-top:1px solid #edf1f5; }
+    .attachment-row:first-child { padding-top:0; border-top:0; }
+    .attachment-icon { display:grid; width:28px; height:28px; place-items:center; color:var(--purple); background:var(--purple-soft); border-radius:5px; font-size:12px; }
+    .attachment-row .attachment-state { margin-left:auto; padding:3px 6px; color:var(--green); background:var(--green-soft); border-radius:3px; font-size:10px; }
+    .attachment-row .attachment-state.missing { color:var(--red); background:var(--red-soft); }
+    .approval-invoice-table { width:100%; min-width:1050px; border-collapse:collapse; }
+    .expense-panel .table-wrap { overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
+    .approval-invoice-table th { padding:8px; color:#596a82; background:#f6f8fb; border:1px solid #e7edf4; font-size:11px; text-align:left; white-space:nowrap; }
+    .approval-invoice-table td { padding:9px 8px; color:#475872; border:1px solid #edf1f5; font-size:12px; vertical-align:middle; }
+    .approval-invoice-table .invoice-result { color:var(--green); white-space:nowrap; }
+    .approval-invoice-table .invoice-view { padding:0; color:var(--blue); background:transparent; border:0; }
+    .approval-invoice-table tfoot td { color:#43536c; background:#f7f9fc; border:1px solid #e7edf4; font-weight:700; }
+    .approval-invoice-table .invoice-total-amount, .approval-invoice-table .invoice-total-tax { color:#1f5dc7; font-size:13px; }
+    .approval-attachment-guidance { margin-bottom:10px; padding:8px 10px; color:#718096; background:#f8fafc; border:1px solid #e4eaf2; border-radius:4px; font-size:11px; }
+    .approval-attachment-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+    .approval-attachment { min-width:0; padding:10px; border:1px solid #e1e7ef; border-radius:5px; background:#fff; }
+    .approval-attachment-head { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#40506a; font-size:12px; font-weight:700; }
+    .approval-attachment-state { flex:0 0 auto; padding:2px 5px; color:#7a8799; background:#f1f4f8; border-radius:3px; font-size:10px; font-weight:400; }
+    .approval-attachment-state.required { color:#9a6500; background:var(--amber-soft); }
+    .approval-attachment-description { margin:6px 0; color:#7c8b9f; font-size:11px; line-height:1.5; }
+    .approval-attachment-file { color:#5b789c; font-size:11px; }
+    .approval-attachment-file.missing { color:#9aa6b5; }
+    .ai-card { overflow:hidden; border:1px solid #b7cdf6; box-shadow:0 9px 22px rgba(42,91,181,.09); }
+    .ai-card .card-head { min-height:55px; background:#f7faff; border-bottom-color:#dce8fb; }
+    .ai-heading { display:flex; gap:9px; align-items:center; }
+    .ai-spark { display:grid; width:23px; height:23px; place-items:center; color:#fff; background:linear-gradient(135deg,#3d7cff,#6e58d6); border-radius:6px; font-size:13px; }
+    .ai-heading strong { color:#27497f; font-size:14px; }
+    .final-opinion { display:flex; gap:10px; align-items:flex-start; padding:14px 16px; background:#fffaf1; border-bottom:1px solid #f2e3c5; }
+    .final-opinion-symbol { display:grid; flex:0 0 auto; width:32px; height:32px; place-items:center; color:#a36a02; background:#fff0cf; border-radius:50%; font-size:15px; font-weight:700; }
+    .final-opinion-label { display:block; color:#8b7550; font-size:11px; }
+    .final-opinion strong { display:block; margin-top:1px; color:#7b570e; font-size:16px; }
+    .final-opinion p { margin:3px 0 0; color:#8b7550; font-size:11px; line-height:1.55; }
+    .ai-body { padding:15px 16px; }
+    .check-title { margin:0 0 8px; color:#40516d; font-size:13px; font-weight:700; }
+    .check-list { overflow:hidden; border:1px solid #e1e7ef; border-radius:6px; }
+    .check-item { display:grid; grid-template-columns:83px minmax(0,1fr); gap:9px; padding:10px 11px; border-top:1px solid #edf1f5; }
+    .check-item:first-child { border-top:0; }
+    .check-name { padding-top:2px; color:#52627a; font-size:11px; font-weight:700; }
+    .check-status { display:inline-flex; align-items:center; min-height:19px; padding:0 6px; border-radius:3px; font-size:10px; font-weight:700; }
+    .check-status.pass { color:var(--green); background:var(--green-soft); }
+    .check-status.review { color:#9a6500; background:var(--amber-soft); }
+    .check-status.fail { color:var(--red); background:var(--red-soft); }
+    .check-opinion { margin:4px 0 0; color:#718096; font-size:11px; line-height:1.55; }
+    .feedback-card { position:static; }
+    .feedback-card .card-head { background:#fff; }
+    .feedback-badge { padding:4px 7px; color:#385889; background:#edf3ff; border-radius:99px; font-size:10px; }
+    .feedback-intro { margin-bottom:12px; padding:10px 11px; color:#61718a; background:#f8fafc; border:1px solid #e4eaf2; border-radius:6px; font-size:11px; line-height:1.55; }
+    .feedback-intro strong { color:#43546f; }
+    .feedback-options { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .feedback-option { min-height:56px; padding:8px 9px; color:#6b7a91; background:#fff; border:1px solid #dce4ef; border-radius:6px; font-size:12px; text-align:left; }
+    .feedback-option b { display:block; margin-bottom:3px; font-size:12px; }
+    .feedback-option small { display:block; font-size:10px; }
+    .feedback-option.accurate.is-selected { color:var(--green); background:#f3fbf8; border-color:#91d3bd; }
+    .feedback-option.inaccurate.is-selected { color:var(--red); background:#fff6f6; border-color:#edb8bd; }
+    .feedback-section { margin-top:14px; }
+    .feedback-section label { display:block; margin-bottom:6px; color:#52627a; font-size:12px; font-weight:700; }
+    .feedback-section select,.feedback-section textarea { width:100%; padding:9px; color:#3f4f68; background:#fff; border:1px solid #d7e0ec; border-radius:5px; outline:none; }
+    .feedback-section textarea { min-height:64px; resize:vertical; }
+    .feedback-section select:focus,.feedback-section textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(40,100,238,.1); }
+    .feedback-note { margin:5px 0 0; color:#8b98aa; font-size:10px; }
+    .condition-feedback-list { overflow:hidden; border:1px solid #dfe7f2; border-radius:6px; }
+    .condition-feedback-item { border-top:1px solid #eaf0f5; }
+    .condition-feedback-item:first-child { border-top:0; }
+    .condition-choice { display:flex; gap:8px; align-items:center; min-height:36px; margin:0; padding:0 10px; color:#45566f; background:#fbfcfe; cursor:pointer; font-size:12px; font-weight:600; }
+    .condition-choice input { accent-color:var(--blue); }
+    .condition-reason { padding:9px 10px 10px 34px; background:#fff; }
+    .condition-reason label { margin-bottom:5px; color:#6c7b90; font-size:11px; }
+    .condition-reason textarea { min-height:54px; }
+    .approval-action.is-submitting { cursor:wait; opacity:.65; }
+    .btn { min-height:33px; padding:0 12px; color:#4d5c73; background:#fff; border:1px solid #d5deeb; border-radius:5px; }
+    .btn.primary { color:#fff; background:var(--blue); border-color:var(--blue); }
+    .btn:disabled { color:#a1adbd; background:#f2f5f8; border-color:#e1e6ed; cursor:not-allowed; }
+    .toast { position:fixed; z-index:40; right:26px; bottom:24px; display:none; padding:11px 15px; color:#fff; background:#263b61; border-radius:6px; box-shadow:0 10px 28px rgba(28,47,81,.22); }
+    .toast.show { display:block; }
+    .crumb { display:none; }
+    .workspace-tabs { display:flex; align-items:flex-end; height:38px; padding-left:12px; background:#fff; border-bottom:8px solid #f2f4f8; }
+    .workspace-tab { position:relative; height:32px; padding:0 14px; color:#4e6583; background:#fff; border:0; border-right:1px solid #dde3eb; border-left:1px solid #dde3eb; font-size:13px; }
+    .workspace-tab + .workspace-tab { margin-left:4px; }
+    .workspace-tab.active { color:#34445e; border-top:3px solid #f26b6b; }
+    .workspace-tab.preview-tab { display:none; }
+    body.file-preview-active .workspace-tab.preview-tab { display:inline-block; }
+    .system-workspace-tab[data-preview-tab="true"] { display:none !important; }
+    body.file-preview-active .system-workspace-tab[data-preview-tab="true"] { display:inline-flex !important; }
+    #filePreviewView { display:none; height:calc(100vh - 106px); min-height:680px; margin:0; background:#eef1f5; }
+    body.file-preview-active #filePreviewView { display:block; }
+    body.file-preview-active #approvalDetailView, body.file-preview-active #approvalHistoryView, body.file-preview-active .approval-toolbar, body.file-preview-active .approval-view-tabs { display:none !important; }
+    #filePreviewFrame { display:block; width:100%; height:100%; border:0; }
+    .workspace-tab .tab-close { margin-left:4px; color:#5779a3; font-weight:700; }
+    .approval-toolbar { display:flex; align-items:center; gap:12px; min-height:56px; padding:10px 16px; background:#fff; border-bottom:8px solid #f2f4f8; }
+    .approval-action { min-width:72px; height:32px; padding:0 14px; color:#fff; background:#ee625e; border:0; border-radius:4px; font-size:13px; }
+    .approval-action:hover { background:#dc514e; }
+    .approval-view-tabs { display:flex; align-items:flex-end; height:42px; padding-left:12px; background:#fff; border-bottom:8px solid #f2f4f8; }
+    .approval-view-tab { position:relative; height:34px; padding:0 15px; color:#526783; background:#fff; border:0; border-right:1px solid #e0e5ed; border-left:1px solid #e0e5ed; font-size:13px; }
+    .approval-view-tab.active { color:#2e5d97; border-top:3px solid #303d5b; }
+    .approval-view[hidden] { display:none; }
+    .approval-history { max-width:1590px; margin:19px 27px 52px; padding:16px; background:#fff; border:1px solid var(--line); border-radius:6px; }
+    .approval-history h2 { margin:0 0 14px; color:#34445e; font-size:15px; }
+    .approval-history table { width:100%; border-collapse:collapse; }
+    .approval-history th,.approval-history td { padding:10px 12px; border-bottom:1px solid #edf1f5; color:#52627a; font-size:13px; text-align:left; }
+    .approval-history th { color:#42526a; background:#f6f8fb; }
+  
+
+      .topbar{position:fixed!important;z-index:10!important;top:0!important;right:0!important;left:0!important;display:flex!important;align-items:center!important;justify-content:space-between!important;height:62px!important;padding:0 25px 0 22px!important;color:#273959!important;background:#fff!important;border-bottom:1px solid #e3e9f2!important}.topbar .brand{position:static!important;z-index:auto!important;display:flex!important;width:auto!important;height:auto!important;padding:0!important;gap:11px!important;align-items:center!important;color:#273959!important;background:transparent!important;font-size:18px!important;font-weight:700!important}.topbar .brand-mark{display:grid!important;width:25px!important;height:25px!important;place-items:center!important;color:#fff!important;background:#e75159!important;border-radius:7px 12px 7px 12px!important;transform:rotate(45deg)!important}.topbar .brand-mark span{font-size:13px!important;transform:rotate(-45deg)!important}.topbar .top-actions{display:flex!important;gap:19px!important;align-items:center!important;color:#6d7a91!important;font-size:12px!important}.topbar .user{display:flex!important;gap:8px!important;align-items:center!important}.topbar .avatar{display:grid!important;width:29px!important;height:29px!important;place-items:center!important;color:#fff!important;background:#e05358!important;border-radius:50%!important;font-style:normal!important}
+      .sidebar{top:62px!important;width:204px!important;padding:16px 12px!important;overflow:auto!important;color:#cbd5e7!important;background:#1f3156!important}.workspace{min-height:calc(100vh - 62px)!important;margin-top:62px!important}
+      .sidebar .side-title{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:5px 11px 13px!important;color:#fff!important;font-size:13px!important;font-weight:700!important}
+      .sidebar .nav-section{margin:0 0 7px!important}.sidebar .nav-section-hidden{display:none!important}.sidebar .nav-item{display:flex!important;align-items:center!important;gap:10px!important;min-height:37px!important;margin:0!important;padding:0 12px!important;color:#c2cde0!important;background:transparent!important;border:0!important;border-radius:6px!important;font-size:13px!important;line-height:37px!important;text-decoration:none!important}
+      .sidebar .nav-item[data-nav-target],.sidebar .nav-sub[data-nav-target]{cursor:pointer!important}.sidebar .nav-item.active{color:#fff!important;background:#2c4472!important;font-weight:700!important}.sidebar .nav-sub{display:block!important;margin:3px 0 4px 37px!important;padding:7px 0!important;color:#81a9fa!important;background:transparent!important;border:0!important;font-size:13px!important;line-height:1.35!important}.sidebar .nav-sub.current{color:#fff!important;font-weight:700!important}.sidebar .nav-divider{height:1px!important;margin:12px 8px!important;background:rgba(203,213,231,.16)!important}.sidebar .nav-static{color:#aebbd0!important}.sidebar [data-nav-target]:hover{filter:brightness(1.12)}.sidebar [data-nav-target]:focus-visible{outline:2px solid #8cb2ff!important;outline-offset:-2px!important}
+    
+
+      .system-workspace-tabs{display:flex!important;align-items:flex-end!important;min-height:40px!important;margin:0!important;padding:7px 12px 0!important;background:#fff!important;border-bottom:8px solid #f2f4f8!important;overflow-x:auto!important;white-space:nowrap!important}
+      .system-workspace-tab,.system-workspace-tabs .tab{position:relative!important;display:inline-flex!important;align-items:center!important;min-height:32px!important;margin:0 0 0 4px!important;padding:0 13px!important;color:#4e6583!important;background:#fff!important;border:1px solid #dde3eb!important;border-bottom:0!important;border-radius:0!important;font:13px/32px "Microsoft YaHei","PingFang SC",Arial,sans-serif!important;cursor:pointer!important}
+      .system-workspace-tab:first-child,.system-workspace-tabs .tab:first-child{margin-left:0!important}.system-workspace-tab.active,.system-workspace-tabs .tab.active{z-index:1!important;color:#34445e!important;background:#fff!important;border-top:3px solid #f26b6b!important;font-weight:700!important}
+      .system-tab-close,.system-workspace-tabs .tab-close{display:inline-grid!important;width:17px!important;height:17px!important;margin-left:5px!important;place-items:center!important;color:#5779a3!important;border-radius:3px!important;font-size:15px!important;font-weight:700!important;line-height:1!important;vertical-align:middle!important}.system-tab-close:hover,.system-workspace-tabs .tab-close:hover{color:#fff!important;background:#7b8ba4!important}.system-workspace-tab:focus-visible,.system-workspace-tabs .tab:focus-visible{outline:2px solid #8cb2ff!important;outline-offset:-2px!important}
+    
+body{min-width:960px;background:#f3f5f9}.workspace{margin:0!important;min-height:100vh!important}.workspace>.crumb{display:none}.content{max-width:none;padding:14px 12px 30px}.approval-toolbar{top:0}.review-drawer{top:0}.approval-history{margin:12px}.example-dialog{width:min(480px,90vw);border:1px solid #e6e9ef;border-radius:6px;padding:22px;color:#34445b;font:13px Microsoft YaHei}.example-dialog::backdrop{background:#26324755}.example-dialog h2{font-size:16px;margin:0 0 20px}.example-dialog textarea{box-sizing:border-box;width:100%;font:inherit;padding:9px;border:1px solid #dce2ec;border-radius:3px}.example-dialog-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.example-dialog button{border:1px solid #dce2ec;border-radius:3px;background:#fff;padding:7px 15px;color:#40506a}.example-dialog .approval-action{background:#ed625b;color:white}.example-file-list{line-height:1.9}.approval-view-tab.active{border-top-color:#ed625b;color:#35445a}</style></head><body class="ai-review-unavailable"><main class="workspace">
+    
+    <div class="approval-toolbar" aria-label="审批操作"><button class="approval-action" type="button" onclick="submitApprovalAction('approve')">审批</button><button class="approval-action" type="button" onclick="submitApprovalAction('reject')">驳回</button><button class="approval-action" type="button" onclick="closeExample()">取消</button><button class="approval-action" type="button" onclick="previewApprovalFiles()">文件预览</button><button id="openReviewDrawer" type="button" hidden="" onclick="toggleReviewDrawer()">展开审单面板</button></div>
+    <div class="approval-view-tabs" role="tablist"><button class="approval-view-tab active" type="button" data-approval-tab="detail" onclick="switchApprovalPageTab('detail')">表单详情</button><button class="approval-view-tab" type="button" data-approval-tab="history" onclick="switchApprovalPageTab('history')">审批记录</button></div>
+    <div id="approvalDetailView" class="approval-view content">
+      <div id="approvalLayout" class="layout review-split is-collapsed">
+        <div>
+          <section class="card"><div class="card-head"><div class="card-title"><span class="num">1</span>申请基础信息</div></div><div class="card-body"><div class="document-context"><span>申请人：<strong>林佳</strong></span><span>申请部门：<strong>市场部</strong></span><span>申请单号：<strong>EXP-20260805-0048</strong></span></div><section class="document-section"><div class="document-section-title">报销信息</div><div class="document-grid"><div class="document-field"><label>标题</label><div class="readonly-value">8 月客户拜访交通费用报销</div></div><div class="document-field"><label>费用时间</label><div class="readonly-value">2026-08-01 至 2026-08-05</div></div><div class="document-field"><label>报销类型</label><div class="readonly-value">报销</div></div><div class="document-field"><label>主体公司</label><div class="readonly-value">博商管理集团有限公司</div></div><div class="document-field"><label>是否有发票</label><div class="readonly-value">是</div></div><div class="document-field"><label>申请金额</label><div class="readonly-value">¥ 1,280.00</div></div><div class="document-field wide" data-application-remark=""><label>备注</label><div class="readonly-value">用于日常业务开展产生的交通、住宿及办公物料费用报销。</div></div></div></section><section class="document-section"><div class="document-section-title">领款信息</div><div class="document-grid"><div class="document-field"><label>领款人</label><div class="readonly-value">林佳</div></div><div class="document-field"><label>领款人开户行</label><div class="readonly-value">中国银行深圳科技园支行</div></div><div class="document-field"><label>领款人银行卡账号</label><div class="readonly-value">6225 8888 0731 6204</div></div><div class="document-field"><label>是否海外付款</label><div class="readonly-value">否</div></div></div></section><section class="document-section"><div class="document-section-title">借款单冲抵</div><div class="document-grid"><div class="document-field"><label>是否使用借款单冲抵</label><div class="readonly-value">是</div></div><div class="document-field wide"><label>领款人当前剩余欠款</label><div class="readonly-value">(CNY) 3,000.00</div></div></div><div class="table-wrap"><table class="mini-table"><thead><tr><th>借款单编号</th><th>主体公司</th><th>状态</th><th>币种</th><th>剩余欠款金额</th><th>实际借款时间</th><th>本次抵冲金额</th></tr></thead><tbody><tr><td>JK202608030010</td><td>深圳市博商管理科学研究院股份有限公司</td><td>待还款</td><td>CNY</td><td>3,000.00</td><td>2026-08-03</td><td>1,280.00</td></tr></tbody></table></div></section></div></section>
+          <section class="card"><div class="card-head"><div class="card-title"><span class="num">2</span>费用明细</div><span class="card-note">按费用类型查看申请人提交的原始材料</span></div><div class="card-body"><section class="expense-group"><div class="expense-head"><span class="expense-tag">费用类型</span><strong>差旅－交通</strong><span>1 条明细 · 1 张发票 · 2 个附件</span><span class="expense-amount">¥ 880.00</span></div><div class="expense-tabs"><button class="active" type="button" data-expense-tab="allocation" onclick="switchExpensePanel(this)">费用明细</button><button type="button" data-expense-tab="invoice" onclick="switchExpensePanel(this)">发票（1）</button><button type="button" data-expense-tab="attachment" onclick="switchExpensePanel(this)">附件（2）</button></div><div class="expense-panel" data-expense-panel="allocation"><table class="mini-table"><thead><tr><th>费用类型</th><th>分摊人</th><th>分摊人部门</th><th>费用承担团队</th><th>分摊金额（人民币）</th><th>事由</th></tr></thead><tbody><tr><td>差旅－交通</td><td>林佳</td><td>市场部</td><td>市场部</td><td>¥ 880.00</td><td>客户拜访交通费</td></tr></tbody></table></div><div class="expense-panel" data-expense-panel="invoice" hidden=""><div class="table-wrap"><table class="approval-invoice-table"><thead><tr><th>序号</th><th>发票号码</th><th>发票类型</th><th>价税合计（元）</th><th>税率</th><th>税额</th><th>开票公司</th><th>购买方主体</th><th>购买方税号</th><th>开票日期</th><th>核验结果</th></tr></thead><tbody><tr><td>1</td><td>142032600048</td><td>电子普通发票</td><td>880.00</td><td>6%</td><td>49.81</td><td>深圳市城市交通服务有限公司</td><td>博商管理集团有限公司</td><td>91440300BS2026001</td><td>2026-08-03</td><td class="invoice-result">核验通过</td></tr></tbody><tfoot><tr><td>合计</td><td colspan="2"></td><td class="invoice-total-amount" data-invoice-total="reimbursement-approval">¥ 880.00</td><td></td><td class="invoice-total-tax" data-invoice-tax-total="reimbursement-approval">49.81</td><td colspan="5"><demo-field-mark anchor="reimbursement-approval-invoice-total"></demo-field-mark></td></tr></tfoot></table></div></div><div class="expense-panel" data-expense-panel="attachment" hidden=""><div class="approval-attachment-list"><article class="approval-attachment"><div class="approval-attachment-head"><strong>合同</strong><span class="approval-attachment-state">选填</span></div><div class="approval-attachment-description">用于关联当前费用类型对应的合同文件。</div><div class="approval-attachment-file">客户拜访费用说明.pdf</div></article><article class="approval-attachment"><div class="approval-attachment-head"><strong>其他说明材料</strong><span class="approval-attachment-state">选填</span></div><div class="approval-attachment-description">用于补充当前费用类型的业务背景说明。</div><div class="approval-attachment-file">尚未上传</div></article></div></div></section><section class="expense-group"><div class="expense-head"><span class="expense-tag">费用类型</span><strong>业务招待－餐费</strong><span>1 条明细 · 1 张发票 · 2 个附件</span><span class="expense-amount">¥ 400.00</span></div><div class="expense-tabs"><button class="active" type="button" data-expense-tab="allocation" onclick="switchExpensePanel(this)">费用明细</button><button type="button" data-expense-tab="invoice" onclick="switchExpensePanel(this)">发票（1）</button><button type="button" data-expense-tab="attachment" onclick="switchExpensePanel(this)">附件（2）</button></div><div class="expense-panel" data-expense-panel="allocation"><table class="mini-table"><thead><tr><th>费用类型</th><th>分摊人</th><th>分摊人部门</th><th>费用承担团队</th><th>分摊金额（人民币）</th><th>事由</th></tr></thead><tbody><tr><td>业务招待－餐费</td><td>林佳</td><td>市场部</td><td>市场部</td><td>¥ 400.00</td><td>客户拜访交通及餐费</td></tr></tbody></table></div><div class="expense-panel" data-expense-panel="invoice" hidden=""><div class="table-wrap"><table class="approval-invoice-table"><thead><tr><th>序号</th><th>发票号码</th><th>发票类型</th><th>价税合计（元）</th><th>税率</th><th>税额</th><th>开票公司</th><th>购买方主体</th><th>购买方税号</th><th>开票日期</th><th>核验结果</th></tr></thead><tbody><tr><td>1</td><td>142032600052</td><td>电子普通发票</td><td>400.00</td><td>6%</td><td>22.64</td><td>深圳市会务餐饮有限公司</td><td>博商管理集团有限公司</td><td>91440300BS2026001</td><td>2026-08-04</td><td class="invoice-result">核验通过</td></tr></tbody><tfoot><tr><td>合计</td><td colspan="2"></td><td class="invoice-total-amount" data-invoice-total="reimbursement-approval">¥ 400.00</td><td></td><td class="invoice-total-tax" data-invoice-tax-total="reimbursement-approval">22.64</td><td colspan="5"><demo-field-mark anchor="reimbursement-approval-invoice-total"></demo-field-mark></td></tr></tfoot></table></div></div><div class="expense-panel" data-expense-panel="attachment" hidden=""><div class="approval-attachment-list"><article class="approval-attachment"><div class="approval-attachment-head"><strong>合同</strong><span class="approval-attachment-state">选填</span></div><div class="approval-attachment-description">用于关联当前费用类型对应的合同文件。</div><div class="approval-attachment-file">尚未上传</div></article><article class="approval-attachment"><div class="approval-attachment-head"><strong>其他说明材料</strong><span class="approval-attachment-state">选填</span></div><div class="approval-attachment-description">用于补充当前费用类型的业务背景说明。</div><div class="approval-attachment-file">客户拜访餐费说明.pdf</div></article></div></div></section></div></section>
+        </div>
+        <aside id="reviewDrawer" class="review-drawer" aria-hidden="true" hidden=""><div class="drawer-head"><div>AI 审单与结果反馈 <span>与左侧单据实时对照</span></div></div>
+          <section class="card ai-card" hidden=""><div class="card-head"><div class="ai-heading"><span class="ai-spark">✦</span><div><strong>AI 审批意见</strong></div></div></div><div class="final-opinion"><span class="final-opinion-symbol">!</span><div><span class="final-opinion-label">最终意见</span><strong>建议复核</strong><p>客户拜访行程及餐费事由待补充，建议复核后处理。</p></div></div><div class="ai-body"><div class="check-title">条件审查结论</div><div class="check-list"><div class="check-item"><div class="check-name">发票合规</div><div><span class="check-status pass">通过</span><p class="check-opinion">2 张关联发票均已验真，发票金额合计 ¥1,280.00。</p></div></div><div class="check-item"><div class="check-name">附件完整</div><div><span class="check-status review">需复核</span><p class="check-opinion">已上传合同类材料，尚需补充客户拜访行程说明。</p></div></div><div class="check-item"><div class="check-name">费用合规</div><div><span class="check-status review">需复核</span><p class="check-opinion">客户拜访餐费需补充业务事由说明。</p></div></div><div class="check-item"><div class="check-name">费用业务匹配</div><div><span class="check-status review">需复核</span><p class="check-opinion">客户拜访对象及行程信息待补充核验。</p></div></div></div></div></section>
+          <section class="card feedback-card" hidden=""><div class="card-head"><div class="card-title"><span class="num">4</span>AI 审单结果反馈</div><span class="feedback-badge">影子审批评估</span></div><div class="card-body"><div class="feedback-intro"><strong>请评价 AI 的审单判断是否准确。</strong>本反馈会随本次审批一并提交，仅用于优化 AI 审单策略和评估准确率，不会改变当前单据的实际审批结果。</div><div class="feedback-options"><button class="feedback-option accurate" type="button" data-feedback="accurate" onclick="selectAiFeedback(this)"><b>✓ AI 判断准确</b><small>AI 结论、风险提示和证据均可采纳</small></button><button class="feedback-option inaccurate" type="button" data-feedback="inaccurate" onclick="selectAiFeedback(this)"><b>! AI 判断不准确</b><small>记录偏差原因，供后续策略调整</small></button></div><div id="inaccuracySection" hidden=""><div class="feedback-section"><label>不准确的条件 <span style="color:#d14b51">*</span></label><p class="feedback-note">请勾选不准确的条件，并分别说明原因。</p><div id="conditionFeedbackList" class="condition-feedback-list"><div class="condition-feedback-item" data-condition="发票合规"><label class="condition-choice"><input type="checkbox" data-condition-checkbox="" onchange="toggleConditionFeedback(this)">发票合规</label><div class="condition-reason" hidden=""><label>发票合规不准确原因 <span style="color:#d14b51">*</span></label><textarea placeholder="请说明发票合规的 AI 判断为何不准确"></textarea></div></div><div class="condition-feedback-item" data-condition="附件完整"><label class="condition-choice"><input type="checkbox" data-condition-checkbox="" onchange="toggleConditionFeedback(this)">附件完整</label><div class="condition-reason" hidden=""><label>附件完整不准确原因 <span style="color:#d14b51">*</span></label><textarea placeholder="请说明附件完整的 AI 判断为何不准确"></textarea></div></div><div class="condition-feedback-item" data-condition="费用合规"><label class="condition-choice"><input type="checkbox" data-condition-checkbox="" onchange="toggleConditionFeedback(this)">费用合规</label><div class="condition-reason" hidden=""><label>费用合规不准确原因 <span style="color:#d14b51">*</span></label><textarea placeholder="请说明费用合规的 AI 判断为何不准确"></textarea></div></div><div class="condition-feedback-item" data-condition="费用业务匹配"><label class="condition-choice"><input type="checkbox" data-condition-checkbox="" onchange="toggleConditionFeedback(this)">费用业务匹配</label><div class="condition-reason" hidden=""><label>费用业务匹配不准确原因 <span style="color:#d14b51">*</span></label><textarea placeholder="请说明费用业务匹配的 AI 判断为何不准确"></textarea></div></div></div></div></div></div></section>
+        </aside>
+      </div>
+    </div>
+    <section id="approvalHistoryView" class="approval-view approval-history" hidden=""><h2>审批记录</h2><table><thead><tr><th>审批节点</th><th>审批人</th><th>审批结果</th><th>审批意见</th><th>审批时间</th></tr></thead><tbody><tr><td>业务审批</td><td>李晓明</td><td>通过</td><td>同意本次费用报销。</td><td>2026-08-04 18:32:15</td></tr><tr><td>财务审批</td><td>财务专员</td><td>待处理</td><td>等待财务审批操作。</td><td>--</td></tr></tbody></table></section>
+    
+  </main><div id="toast" class="toast" role="status"></div><script>/* Interactions for the fixed local reimbursement example. No backend writes. */
+function closeExample(){parent.postMessage({type:'budget-close-reimbursement'},'*');}
+function showToast(message){const toast=document.getElementById('toast');toast.textContent=message;toast.classList.add('show');clearTimeout(window.exampleToast);window.exampleToast=setTimeout(()=>toast.classList.remove('show'),2500);}
+function switchApprovalPageTab(tab){document.getElementById('approvalDetailView').hidden=tab!=='detail';document.getElementById('approvalHistoryView').hidden=tab!=='history';document.querySelectorAll('[data-approval-tab]').forEach(button=>button.classList.toggle('active',button.dataset.approvalTab===tab));}
+function switchExpensePanel(button){const group=button.closest('.expense-group'),tab=button.dataset.expenseTab;group.querySelectorAll('[data-expense-tab]').forEach(el=>el.classList.toggle('active',el===button));group.querySelectorAll('[data-expense-panel]').forEach(el=>el.hidden=el.dataset.expensePanel!==tab);}
+function toggleReviewDrawer(){const drawer=document.getElementById('reviewDrawer'),layout=document.getElementById('approvalLayout');const open=!drawer.classList.contains('show');drawer.classList.toggle('show',open);layout.classList.toggle('is-collapsed',!open);drawer.setAttribute('aria-hidden',String(!open));document.getElementById('openReviewDrawer').hidden=open;}
+function selectAiFeedback(button){document.querySelectorAll('[data-feedback]').forEach(el=>el.classList.toggle('is-selected',el===button));document.getElementById('inaccuracySection').hidden=button.dataset.feedback!=='inaccurate';}
+function toggleConditionFeedback(input){const row=input.closest('.condition-feedback-item');row.querySelector('.condition-reason').hidden=!input.checked;}
+function exampleDialog(title,content,onConfirm){
+  document.querySelector('dialog')?.remove();const dialog=document.createElement('dialog');dialog.className='example-dialog';
+  const heading=document.createElement('h2');heading.textContent=title;dialog.append(heading,content);
+  const footer=document.createElement('div');footer.className='example-dialog-foot';const cancel=document.createElement('button');cancel.textContent=onConfirm?'取消':'关闭';cancel.onclick=()=>dialog.close();footer.append(cancel);
+  if(onConfirm){const confirm=document.createElement('button');confirm.className='approval-action';confirm.textContent='确认';confirm.onclick=()=>{if(onConfirm()!==false)dialog.close();};footer.append(confirm);}
+  dialog.append(footer);document.body.append(dialog);dialog.showModal();
+}
+function submitApprovalAction(kind){
+  if(kind==='cancel'){closeExample();return;}
+  const content=document.createElement('div'),field=document.createElement('textarea');field.rows=3;field.placeholder=kind==='reject'?'请填写驳回意见（必填）':'请输入审批意见';field.setAttribute('aria-label','审批意见');content.append(field);
+  exampleDialog(kind==='reject'?'驳回申请':'审批通过',content,()=>{
+    if(kind==='reject'&&!field.value.trim()){showToast('请填写驳回意见');return false;}
+    const tr=document.createElement('tr');['财务审批','财务管理员',kind==='reject'?'驳回':'通过',field.value.trim()||'同意',new Date().toLocaleString('sv-SE')].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td);});document.querySelector('#approvalHistoryView tbody').append(tr);showToast('已记录本地示例操作');
+  });
+}
+function previewApprovalFiles(){
+  const content=document.createElement('div');content.className='example-file-list';
+  document.querySelectorAll('[data-expense-panel="attachment"] strong,.approval-attachment-file').forEach(el=>{const p=document.createElement('p');p.textContent=el.textContent;content.append(p);});
+  if(!content.children.length)content.textContent='客户拜访行程说明.pdf、客户拜访业务说明.pdf';
+  exampleDialog('附件预览',content);
+}
+</script></body></html>
