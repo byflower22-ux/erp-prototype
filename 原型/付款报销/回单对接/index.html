@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>付款报销管理</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+    <script src="../../公共/client.js"></script>
+    <script src="assets/js/erp-adapter.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="sidebar" class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">✥</span>
+          <span>博商管理</span>
+        </div>
+        <nav class="side-nav" aria-label="功能导航">
+          <button class="side-nav-item" type="button"><span aria-hidden="true">⌂</span>门户</button>
+          <button class="side-nav-item" type="button"><span aria-hidden="true">♟</span>学务管理</button>
+          <button class="side-nav-item" type="button"><span aria-hidden="true">▣</span>规则管理</button>
+          <button id="financial-menu-trigger" class="side-nav-item side-nav-item--active" type="button" aria-expanded="true" aria-controls="financial-submenu"><span aria-hidden="true">▰</span>财务管理 <span class="nav-arrow" aria-hidden="true">⌄</span></button>
+          <div id="financial-submenu" class="financial-submenu">
+            <button type="button">订单中心</button>
+            <button type="button">客户档案</button>
+            <button type="button">银行对账</button>
+            <button type="button">发票管理</button>
+            <button class="submenu-item--selected" type="button" aria-current="page">审批确认</button>
+            <button type="button">开具发票</button>
+            <button type="button">费用报销</button>
+            <button type="button">收入确认</button>
+            <button type="button">项目收支</button>
+            <button type="button">收款记录</button>
+            <button type="button">付款申请</button>
+            <button type="button">回单对接</button>
+            <button type="button">预算管理</button>
+          </div>
+          <button class="side-nav-item" type="button"><span aria-hidden="true">♟</span>预算管理</button>
+          <button class="side-nav-item" type="button"><span aria-hidden="true">⚑</span>活动管理</button>
+          <button class="side-nav-item" type="button"><span aria-hidden="true">▣</span>客户关系管理</button>
+        </nav>
+      </aside>
+
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button" type="button" aria-label="展开导航">☰</button>
+          <button class="icon-button" type="button" aria-label="应用消息">▤<span class="notification-dot"></span></button>
+          <button class="icon-button" type="button" aria-label="待办事项">☑<span class="notification-dot"></span></button>
+          <button class="icon-button" type="button" aria-label="通知">♟<span class="notification-dot notification-dot--amber"></span></button>
+          <button class="icon-button" type="button" aria-label="全局搜索">⌕</button>
+        </div>
+        <div class="topbar-right">
+          <button type="button">▦ 应用中心⌄</button>
+          <button type="button">▧ 帮助手册</button>
+          <button type="button">▣ 日程</button>
+          <button type="button">▦ 换肤</button>
+          <button class="account-button" type="button"><span class="avatar">财</span> 超级管理员⌄</button>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section id="approval-list-page">
+        <div class="tab-strip" aria-label="页面标签">
+          <button type="button">首页</button>
+          <button class="page-tab page-tab--active" type="button">审批确认 <span aria-hidden="true">×</span></button>
+        </div>
+
+        <section class="page-toolbar" aria-label="单据操作">
+          <div class="toolbar-actions">
+            <label class="sr-only" for="keyword-input">搜索单据</label>
+            <div class="keyword-search">
+              <input id="keyword-input" type="search" placeholder="搜索标题、单号、申请人、申请部门..." autocomplete="off" />
+              <button id="search-button" type="button" aria-label="搜索">⌕</button>
+            </div>
+            <button id="more-actions-button" class="button button--accent" type="button">更多 <span aria-hidden="true">≡</span></button>
+            <button id="reset-data-button" class="button button--reset" type="button">重置数据</button>
+            <aside class="change-marker-guide" aria-label="本次改动标记说明">
+              <span class="change-marker-guide__title">本次改动</span>
+              <span class="change-marker-guide__legend"><span class="change-marker change-marker--new" title="本次新增：新增状态或规则"></span><span>新增</span><span class="change-marker change-marker--updated" title="本次调整：现有功能调整"></span><span>调整</span></span>
+              <button id="change-marker-toggle" class="change-marker-toggle" type="button" aria-pressed="false">隐藏标记</button>
+            </aside>
+          </div>
+        </section>
+
+        <section id="filter-panel" class="filter-panel" aria-label="单据筛选">
+          <div class="filter-row" role="group" aria-label="表单状态">
+            <span class="filter-label">表单状态：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="status" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="status" data-value="待财务审核">待财务审核</button>
+              <button class="filter-chip" type="button" data-filter="status" data-value="已驳回">已驳回</button>
+              <button class="filter-chip" type="button" data-filter="status" data-value="待支付">待支付</button>
+              <button class="filter-chip" type="button" data-filter="status" data-value="已支付">已支付</button>
+              <button class="filter-chip" type="button" data-filter="status" data-value="支付失败">支付失败</button>
+            </div>
+          </div>
+          <div class="filter-row" role="group" aria-label="回单状态">
+            <span class="filter-label"><span class="change-marker-anchor">回单状态：<span class="change-marker change-marker--new" title="本次新增：回单状态筛选"></span></span></span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="receiptStatus" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="receiptStatus" data-value="待拉取">待拉取</button>
+              <button class="filter-chip" type="button" data-filter="receiptStatus" data-value="已归档">已归档</button>
+              <button class="filter-chip" type="button" data-filter="receiptStatus" data-value="拉取失败">拉取失败</button>
+            </div>
+          </div>
+          <div class="filter-row" role="group" aria-label="金蝶状态">
+            <span class="filter-label"><span class="change-marker-anchor">金蝶状态：<span class="change-marker change-marker--new" title="本次新增：金蝶状态筛选"></span></span></span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="kingdeeStatus" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="kingdeeStatus" data-value="待同步">待同步</button>
+              <button class="filter-chip" type="button" data-filter="kingdeeStatus" data-value="同步成功">同步成功</button>
+              <button class="filter-chip" type="button" data-filter="kingdeeStatus" data-value="同步失败">同步失败</button>
+              <button class="filter-chip" type="button" data-filter="kingdeeStatus" data-value="部分失败">部分失败</button>
+            </div>
+          </div>
+          <div class="filter-row" role="group" aria-label="创建时间">
+            <span class="filter-label">创建时间：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="datePreset" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="近7天">近7天</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="昨天">昨天</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="今天">今天</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="本周">本周</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="上周">上周</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="本月">本月</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="上月">上月</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="本季度">本季度</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="上季度">上季度</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="本年">本年</button>
+              <button class="filter-chip" type="button" data-filter="datePreset" data-value="去年">去年</button>
+            </div>
+            <label class="date-range" for="start-date"><span class="sr-only">开始日期</span><input id="start-date" type="date" /></label>
+            <span class="date-range-separator">至</span>
+            <label class="date-range" for="end-date"><span class="sr-only">结束日期</span><input id="end-date" type="date" /></label>
+            <button id="date-range-apply" class="button button--small" type="button">查询</button>
+          </div>
+          <div class="filter-row" role="group" aria-label="流程审批通过时间">
+            <span class="filter-label">流程审批通过时间：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="approvalDatePreset" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="近7天">近7天</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="昨天">昨天</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="今天">今天</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="本周">本周</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="上周">上周</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="本月">本月</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="上月">上月</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="本季度">本季度</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="上季度">上季度</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="本年">本年</button>
+              <button class="filter-chip" type="button" data-filter="approvalDatePreset" data-value="去年">去年</button>
+            </div>
+            <label class="date-range" for="approval-start-date"><span class="sr-only">审批通过开始日期</span><input id="approval-start-date" type="date" /></label>
+            <span class="date-range-separator">至</span>
+            <label class="date-range" for="approval-end-date"><span class="sr-only">审批通过结束日期</span><input id="approval-end-date" type="date" /></label>
+            <button id="approval-date-range-apply" class="button button--small" type="button">查询</button>
+          </div>
+          <div class="filter-row" role="group" aria-label="报销单类型">
+            <span class="filter-label">报销单类型：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="type" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="type" data-value="报销单">报销单</button>
+              <button class="filter-chip" type="button" data-filter="type" data-value="付款单">付款单</button>
+              <button class="filter-chip" type="button" data-filter="type" data-value="差旅报销单">差旅报销单</button>
+              <button class="filter-chip" type="button" data-filter="type" data-value="借款单">借款单</button>
+            </div>
+          </div>
+          <div class="filter-row" role="group" aria-label="是否涉海外">
+            <span class="filter-label">是否涉海外：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="overseas" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="overseas" data-value="true">是</button>
+              <button class="filter-chip" type="button" data-filter="overseas" data-value="false">否</button>
+            </div>
+          </div>
+          <div class="filter-row" role="group" aria-label="是否有发票">
+            <span class="filter-label">是否有发票：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="invoice" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="invoice" data-value="true">是</button>
+              <button class="filter-chip" type="button" data-filter="invoice" data-value="false">否</button>
+            </div>
+          </div>
+          <div class="filter-row" role="group" aria-label="付款主体">
+            <label class="filter-label" for="payer-select">付款主体：</label>
+            <select id="payer-select" aria-label="选择付款主体">
+              <option value="">请选择</option>
+            </select>
+          </div>
+          <div class="filter-row" role="group" aria-label="收款方类型">
+            <span class="filter-label">收款方类型：</span>
+            <div class="filter-chips">
+              <button class="filter-chip is-active" type="button" data-filter="payeeType" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-filter="payeeType" data-value="公司">公司</button>
+              <button class="filter-chip" type="button" data-filter="payeeType" data-value="个人">个人</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="list-section" aria-label="单据列表">
+          <div class="list-meta">
+            <span id="result-summary">共 0 条记录</span>
+          </div>
+          <div class="table-scroll" tabindex="0" aria-label="可横向滚动的单据表格">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col"><span class="change-marker-anchor">操作<span class="change-marker change-marker--updated" title="本次调整：操作栏合并状态处理动作"></span></span></th>
+                  <th scope="col">单号</th>
+                  <th scope="col">标题</th>
+                  <th scope="col">是否有发票</th>
+                  <th scope="col">是否涉海外</th>
+                  <th scope="col">金蝶编码</th>
+                  <th scope="col">CBS交易流水号</th>
+                  <th scope="col">申请时间</th>
+                  <th scope="col">流程审批通过时间</th>
+                  <th scope="col">申请人</th>
+                  <th scope="col">申请部门</th>
+                  <th scope="col">付款主体</th>
+                  <th scope="col">内容</th>
+                  <th scope="col">金额(人民币)</th>
+                  <th scope="col">金额(外币)</th>
+                  <th scope="col">单据类型</th>
+                  <th scope="col">状态</th>
+                  <th scope="col">收款方类型</th>
+                  <th scope="col"><span class="change-marker-anchor">回单状态<span class="change-marker change-marker--new" title="本次新增：回单状态字段"></span></span></th>
+                  <th scope="col"><span class="change-marker-anchor">金蝶状态<span class="change-marker change-marker--new" title="本次新增：金蝶状态字段"></span></span></th>
+                  <th scope="col">状态时间</th>
+                  <th scope="col"><span class="change-marker-anchor">失败原因<span class="change-marker change-marker--updated" title="本次调整：失败原因字段"></span></span></th>
+                  <th scope="col">审批人</th>
+                </tr>
+              </thead>
+              <tbody id="receipt-table-body"></tbody>
+            </table>
+          </div>
+          <nav id="pagination" class="pagination" aria-label="单据列表分页"></nav>
+        </section>
+        </section>
+
+        <section id="approval-detail-page" class="approval-detail-page" hidden></section>
+        <section id="file-preview-page" class="file-preview-page" hidden></section>
+      </main>
+
+      <div id="detail-dialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-dialog-title" hidden>
+        <div class="modal__backdrop" data-close-dialog="true"></div>
+        <div class="modal__panel">
+          <div class="modal__header">
+            <h2 id="detail-dialog-title">单据详情</h2>
+            <button id="detail-dialog-close" class="icon-button modal__close" type="button" aria-label="关闭详情">×</button>
+          </div>
+          <div id="detail-dialog-content" class="modal__content"></div>
+        </div>
+      </div>
+
+      <div id="operation-dialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="operation-dialog-title" hidden>
+        <div class="modal__backdrop" data-close-operation-dialog="true"></div>
+        <div class="modal__panel">
+          <div class="modal__header">
+            <h2 id="operation-dialog-title">处理单据</h2>
+            <button id="operation-dialog-close" class="icon-button modal__close" type="button" aria-label="关闭处理">×</button>
+          </div>
+          <form id="operation-form" class="modal__content">
+            <p id="operation-error" class="form-error" role="alert" hidden></p>
+            <div id="operation-fields"></div>
+            <div class="modal__actions">
+              <button id="operation-cancel" class="button" type="button">取消</button>
+              <button id="operation-submit" class="button button--accent" type="submit">确认</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <button class="floating-button floating-button--help" type="button" aria-label="帮助">问</button>
+      <button class="floating-button floating-button--support" type="button" aria-label="联系客服">☎</button>
+    </div>
+
+    <script src="assets/js/logic.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/action-logic.js"></script>
+    <script src="assets/js/app.js"></script>
+  </body>
+</html>

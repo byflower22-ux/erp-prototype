@@ -1,0 +1,199 @@
+{
+  "iteration": "回单对接",
+  "archived_on": "2026-10-23",
+  "source_directory": "D:/wzz/wzz/付款报销/回单对接",
+  "files": [
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/assets/css/styles.css",
+      "target": "原型/付款报销/回单对接/assets/css/styles.css",
+      "sha256": "30068b5c2208b29045dfd0362a5922ea7c517aa968daa21f66637c7fe664a5fa",
+      "bytes": 24291
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/assets/js/action-logic.js",
+      "target": "原型/付款报销/回单对接/assets/js/action-logic.js",
+      "sha256": "3eef2a123cba9be1752615d83481b5d579bba2d63409795d53d32a18f7b3a177",
+      "bytes": 9098
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/assets/js/app.js",
+      "target": "原型/付款报销/回单对接/assets/js/app.js",
+      "sha256": "bda825b698977c9361c9d382a16c27a5f3fc13459f2259774d7975a54fcd7d99",
+      "bytes": 65989
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/assets/js/data.js",
+      "target": "原型/付款报销/回单对接/assets/js/data.js",
+      "sha256": "0cc792cf808fdeaafe9f56e2d5ac4ecb4aff5e7f2245f3738d57f8a3dee75e54",
+      "bytes": 16698
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/assets/js/logic.js",
+      "target": "原型/付款报销/回单对接/assets/js/logic.js",
+      "sha256": "c0e8bdb5cf1b7eb1161a5af9ed3ab42646339b56d33e66955528aa6205358d0a",
+      "bytes": 7105
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/.build_prd.py",
+      "target": "文档/迭代/回单对接/docs/.build_prd.py",
+      "sha256": "590df6de9adfd18694a6c7f545ffb14f0cd2d1c81b0dfa8ed4c618e8d635ecb6",
+      "bytes": 46992
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/.build_user_manual.py",
+      "target": "文档/迭代/回单对接/docs/.build_user_manual.py",
+      "sha256": "54cc707ffc4e9e42e471ca2662721ff0fdb2e85fb57233869000c858b2cd8cbe",
+      "bytes": 7777
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/manual-a11y.json",
+      "target": "文档/迭代/回单对接/docs/manual-a11y.json",
+      "sha256": "77ba0cb54d1469059b4e8c7c95962b3d02f354345cd03b14b7df0c2cc73ad47c",
+      "bytes": 161
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/plans/2026-08-11-cbs-kd-status-tracking.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/plans/2026-08-11-cbs-kd-status-tracking.md",
+      "sha256": "5db93546005874e86d7d80c22f145358f1b65bfcbc3ed4a78c1e38a2a9f80b91",
+      "bytes": 3119
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/plans/2026-08-11-manual-integration-actions.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/plans/2026-08-11-manual-integration-actions.md",
+      "sha256": "e7fbe10bfd224823b0156b4752115e1b91ba95c0b7fca621c8851e237efa39d3",
+      "bytes": 9557
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/plans/2026-08-11-reimbursement-list.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/plans/2026-08-11-reimbursement-list.md",
+      "sha256": "cd70f9e0e25f449bb1ce071a357bc0b87509b48e0d493f3e02e69d219dd1331c",
+      "bytes": 19686
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/plans/2026-08-12-approval-actions.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/plans/2026-08-12-approval-actions.md",
+      "sha256": "10fcd08588dd3281ef4af18444ff5368f163afaa83ae78d166414e0c45ed5dc9",
+      "bytes": 2196
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/plans/2026-08-12-operation-log-audit.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/plans/2026-08-12-operation-log-audit.md",
+      "sha256": "2190f544ae25010973d00f24479af878483f9a6aa1c61cd99034267e1179e236",
+      "bytes": 1956
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/specs/2026-08-11-cbs-kd-status-tracking-design.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/specs/2026-08-11-cbs-kd-status-tracking-design.md",
+      "sha256": "795090ca39c74852ebaaeb8dc1f47f37a84a08c22f583e8ee6d5b39b66b5d22d",
+      "bytes": 1593
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/specs/2026-08-11-manual-integration-actions-design.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/specs/2026-08-11-manual-integration-actions-design.md",
+      "sha256": "f3e5a263669da2e859fbbbc47c8beeebaa5f120fe335f3962207e9071e057cf3",
+      "bytes": 2552
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/superpowers/specs/2026-08-11-reimbursement-list-design.md",
+      "target": "文档/迭代/回单对接/docs/superpowers/specs/2026-08-11-reimbursement-list-design.md",
+      "sha256": "ec3593a3752ffd10ac278ab98d343c8470a2b98c47444c01876249cf82dd7213",
+      "bytes": 3581
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.0.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.0.docx",
+      "sha256": "10ac4799b4fd1719ccb4d6c4fceecf6b2e790d502a0dd5afdd64a0ff10919997",
+      "bytes": 53298
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.1.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.1.docx",
+      "sha256": "e8a8b637fb416f46ec13e8aed404ff6537a5d7f26e12ac2b33b1621cb56ad920",
+      "bytes": 55690
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.2_日志节点补充.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.2_日志节点补充.docx",
+      "sha256": "40d7141613e8f441d3098fda09d78cadce11bace02f4496fd54f1b48532d15ee",
+      "bytes": 56022
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.3_状态补充.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.3_状态补充.docx",
+      "sha256": "65349fe43169668fbb79847b117ab3ed28de3309f5c702bb6c109f4c470db925",
+      "bytes": 56920
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.4_列表操作栏.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.4_列表操作栏.docx",
+      "sha256": "8c5b25062e191cd8ad2cf6d4ebef3b635e42429789cb58f8a7e0960b5361453a",
+      "bytes": 58349
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.5_按钮名称对齐Demo.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.5_按钮名称对齐Demo.docx",
+      "sha256": "bf8d515a603acb903698c46ef05d503d5c212f9f4666a63c98c5e1f2ee6c66e1",
+      "bytes": 58209
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接PRD_V1.6_Demo场景单号映射.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接PRD_V1.6_Demo场景单号映射.docx",
+      "sha256": "6084f29b59afe265ad8906c70ee4891931b975be70988d7ccc91353aa62f3f51",
+      "bytes": 59008
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接测试用例.md",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接测试用例.md",
+      "sha256": "1e072117f877793199c50775e61a6cdd3e7d35cd165cac6bc9371619c9baaf27",
+      "bytes": 20631
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接用户操作手册.docx",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接用户操作手册.docx",
+      "sha256": "6d41ef473983713118a51df659f42e63e019c14adf96d681fa93f0ba1e2e1e3a",
+      "bytes": 52973
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/docs/付款报销回单对接用户操作手册.md",
+      "target": "文档/迭代/回单对接/docs/付款报销回单对接用户操作手册.md",
+      "sha256": "612ce22f2b20cc6241c87dce2c14f85fcbfa9d18a73ffd0880e0b5ee205da34f",
+      "bytes": 9592
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/ERP-CBS-金蝶付款回单流程.drawio",
+      "target": "文档/迭代/回单对接/ERP-CBS-金蝶付款回单流程.drawio",
+      "sha256": "77206e8b4eeb08ace71a749c02d8dcfa085b76a0f2f209013afe2e673cbea46c",
+      "bytes": 20560
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/index.html",
+      "target": "原型/付款报销/回单对接/index.html",
+      "sha256": "db0e9b67c2d69b87fa5edbb253fb944322887e57ba6be7023b19b4b5430a45cc",
+      "bytes": 19821
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/tests/action-logic.test.js",
+      "target": "原型/付款报销/回单对接/tests/action-logic.test.js",
+      "sha256": "e8e50d0840e733f0370471106e7ecb2d4bc2fff9ba39cf28582dba63223a981c",
+      "bytes": 7631
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/tests/data.test.js",
+      "target": "原型/付款报销/回单对接/tests/data.test.js",
+      "sha256": "e82096c9c0c44bbbec130e35f9e3c56abc73df7a17e4600ec52ee10e20a40ad4",
+      "bytes": 7112
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/tests/logic.test.js",
+      "target": "原型/付款报销/回单对接/tests/logic.test.js",
+      "sha256": "bac3bbae82098e564b51626a65a9de57eaa8aa8aad123c780580f3dabc7cc300",
+      "bytes": 7670
+    },
+    {
+      "source": "D:/wzz/wzz/付款报销/回单对接/tests/page-structure.test.js",
+      "target": "原型/付款报销/回单对接/tests/page-structure.test.js",
+      "sha256": "9762eb2e3e6993b3d8598871da8bf7fffce5a4cc610070f3ffae69e041bf7406",
+      "bytes": 26508
+    }
+  ]
+}

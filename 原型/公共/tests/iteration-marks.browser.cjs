@@ -1,0 +1,83 @@
+/* ERP_PLAYWRIGHT_MODULE may point to an installed Playwright package. */
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const {pathToFileURL}=require('node:url');
+const {chromium}=require(process.env.ERP_PLAYWRIGHT_MODULE||'playwright');
+const root=path.resolve(__dirname,'../../..');
+(async()=>{
+  const browser=await chromium.launch({channel:process.env.ERP_BROWSER_CHANNEL||'chrome',headless:true});
+  const page=await browser.newPage({viewport:{width:1440,height:1000}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  try {
+    await page.goto(pathToFileURL(path.join(root,'原型/预算管理/预算优化/prototype/index.html')).href+'#overview');
+    const bar=page.locator('erp-iteration-marks');
+    await bar.getByRole('button',{name:'显示标记',exact:true}).waitFor({timeout:5000});
+    assert.equal(await bar.locator('.pin').count(),0);
+    await bar.getByRole('button',{name:'显示标记',exact:true}).click();
+    await bar.locator('.pin').first().waitFor();
+    assert.ok(await bar.locator('.pin').count()>0);
+    await bar.locator('.pin').first().click();
+    await bar.getByRole('dialog').waitFor();
+    assert.ok((await bar.getByRole('dialog').innerText()).includes('执行入口'));
+    await bar.getByRole('button',{name:'关闭变更说明'}).click();
+    await page.locator('.legacy-ops [data-page="execute"]').first().click();
+    await page.waitForFunction(()=>document.querySelector('#content').dataset.erpPage==='execute');
+    await bar.locator('.pin[data-mark="execution-monthly"]').waitFor();
+    await bar.locator('.pin[data-mark="execution-monthly"]').click();
+    await bar.locator('article[data-id="execution-monthly"].selected').waitFor();
+    await bar.getByRole('button',{name:'关闭变更说明'}).click();
+    await bar.locator('.pin[data-mark="execution-balance"]').click();
+    await bar.locator('article[data-id="execution-balance"].selected').waitFor();
+    await bar.getByRole('button',{name:'关闭变更说明'}).click();
+    await bar.getByRole('button',{name:'全部变更',exact:false}).click();
+    await bar.locator('article[data-id="execution-annual"]').getByRole('button',{name:'定位此处'}).click();
+    await bar.locator('.pin[data-mark="execution-annual"]').waitFor();
+    await bar.getByRole('button',{name:'全部变更',exact:false}).click();
+    await bar.locator('article[data-id="execution-monthly"]').getByRole('button',{name:'定位此处'}).click();
+    await bar.locator('.pin[data-mark="execution-monthly"]').waitFor();
+    await page.locator('#month-select').selectOption('2026-09');
+    await bar.locator('.pin[data-mark="execution-monthly"]').waitFor();
+    await page.locator('[data-action="mode"][data-mode="annual"]').click();
+    await bar.locator('.pin[data-mark="execution-annual"]').waitFor();
+    assert.equal(await bar.locator('.pin[data-mark="execution-monthly"]').count(),0);
+    await bar.getByRole('button',{name:'全部变更',exact:false}).click();
+    await bar.locator('article[data-id="frozen-detail"]').getByRole('button',{name:'前往页面'}).click();
+    await bar.locator('.pin[data-mark="frozen-detail"]').waitFor();
+    await bar.getByRole('button',{name:'全部变更',exact:false}).click();
+    const docs=await bar.locator('article[data-id="frozen-detail"] a').evaluateAll(nodes=>nodes.map(n=>n.href));
+    assert.ok(docs.every(url=>url.startsWith(pathToFileURL(root+path.sep).href)));
+    await bar.locator('article[data-id="execution-annual"]').getByRole('button',{name:'前往页面'}).click();
+    await bar.locator('.pin[data-mark="execution-annual"]').waitFor();
+    await bar.getByRole('button',{name:'隐藏标记',exact:true}).click();
+    assert.equal(await bar.locator('.pin').count(),0);
+    assert.equal(await page.locator('.annual-execution').count(),1);
+    // Use a second configuration to verify the public API beyond this iteration.
+    await page.evaluate(()=>{
+      const el=document.querySelector('erp-iteration-marks');
+      const config=JSON.parse(JSON.stringify(window.BudgetIterationMarks));
+      config.versions.push({id:'ERP-TEST',label:'复用验证'});
+      config.marks.push({id:'future',version:'ERP-TEST',type:'new',title:'未来迭代',page:'execute',selector:'.execution-panel'});
+      el.configure(config,{root:document.querySelector('#content')});
+    });
+    await bar.getByLabel('筛选迭代版本').selectOption('ERP-TEST');
+    await bar.getByRole('button',{name:'显示标记',exact:true}).click();
+    await bar.locator('.pin[data-mark="future"]').waitFor();
+    assert.equal(await bar.locator('.pin').count(),1);
+    await bar.getByLabel('筛选迭代版本').selectOption('ERP-I003');
+    assert.equal(await bar.locator('.pin[data-mark="future"]').count(),0);
+    // A refresh restores the module's configuration and display preference.
+    await page.reload();
+    await bar.getByRole('button',{name:'隐藏标记',exact:true}).waitFor();
+    await page.goto(pathToFileURL(path.join(root,'index.html')).href);
+    const budget=page.frameLocator('iframe[data-module="budget"]');
+    await page.locator('#erp-version-marks').getByRole('button',{name:'全部变更',exact:false}).waitFor();
+    await page.locator('nav [data-module="receipt"]').click();
+    await page.locator('#erp-tabs button[data-tab-id="receipt:list"][aria-current="page"]').waitFor();
+    const receipt=page.frameLocator('iframe[data-module="receipt"]');
+    assert.equal(await receipt.locator('erp-iteration-marks').count(),0);
+    await page.locator('nav [data-module="budget"][data-page="overview"]').click();
+    await page.locator('#erp-version-marks').getByRole('button',{name:'隐藏标记',exact:true}).waitFor();
+    assert.deepEqual(errors,[]);
+    console.log('PASS 标记开关、说明面板、重绘、全年切换、版本隔离、本地刷新与工作台跨模块回归');
+  } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

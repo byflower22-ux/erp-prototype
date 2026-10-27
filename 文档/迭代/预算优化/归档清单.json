@@ -1,0 +1,205 @@
+{
+  "iteration": "预算优化",
+  "archived_on": "2026-10-23",
+  "source_directory": "D:/wzz/wzz/预算管理/预算优化",
+  "files": [
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/AGENTS.md",
+      "target": "原型/预算管理/预算优化/AGENTS.md",
+      "sha256": "761cb65c826576758ff5a6f65ac28414aa52831b70bac9a762e1707cc812047e",
+      "bytes": 355
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/adjustment-full-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/adjustment-full-preview.png",
+      "sha256": "c87114d2e98a427ccba14bdf70ed5b3f32b801d774a66389d637e6f639a84ef2",
+      "bytes": 105557
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/adjustment-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/adjustment-preview.png",
+      "sha256": "e55ba0c276186a3db29290cea36992dcd79009afadaadbafd8d1b419aecc34ce",
+      "bytes": 109127
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/adjustment.js",
+      "target": "原型/预算管理/预算优化/prototype/adjustment.js",
+      "sha256": "857c38a211613d213db5f1435e5a1d0568836d78f91d9d7ab125cc38e75d786b",
+      "bytes": 10203
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/app.js",
+      "target": "原型/预算管理/预算优化/prototype/app.js",
+      "sha256": "237ebe1a3ec3ae93447d71ab966627ea1eb480cfcdfaced536a4a4ae34ddda37",
+      "bytes": 51988
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/application-cancel-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/application-cancel-preview.png",
+      "sha256": "850cf7bf91fc2ba9d23b60f68a563c4798bbab1e35b6def794a2727736b97180",
+      "bytes": 103334
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/application-compact-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/application-compact-preview.png",
+      "sha256": "2271739a27a923e7bd156118c0a9a628e2ee7ee5671088dc5ae3aa8c79c1caa6",
+      "bytes": 93958
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/application-month-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/application-month-preview.png",
+      "sha256": "2b4bfdf0370ad404113cd4f4cac5ea7a1806fe352161ae3c87979f1df6b83981",
+      "bytes": 94288
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/application-team-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/application-team-preview.png",
+      "sha256": "2610c964cdc716b7e6e20fed1486634e6a10ae1362b8d677c5c3837284312fc7",
+      "bytes": 51167
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/application-year-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/application-year-preview.png",
+      "sha256": "e774c2aa47d585fda161aad2f5aacb8e184167f4431379bbf5a78da55a8f0955",
+      "bytes": 97443
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/application.js",
+      "target": "原型/预算管理/预算优化/prototype/application.js",
+      "sha256": "f1e245c91d9c561cb3bfd53a6973e791538809b2949fb468c42b2a36b8436162",
+      "bytes": 11873
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/approval-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/approval-preview.png",
+      "sha256": "cc2dda6e35e70c8b824d3c6d2dd6583c9a70778362d0d8373a253cf506160a6c",
+      "bytes": 94107
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/approval.js",
+      "target": "原型/预算管理/预算优化/prototype/approval.js",
+      "sha256": "3a313fc1a16872be97adafd5bdda64b11ca9869d3b5b88881aada6c6c3bb005c",
+      "bytes": 17087
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/build.cjs",
+      "target": "原型/预算管理/预算优化/prototype/build.cjs",
+      "sha256": "16ede7c86e1239bbcbba01eb98dd622b533e1071c0292df883a9095f3f2ce11c",
+      "bytes": 1231
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/cascader-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/cascader-preview.png",
+      "sha256": "602a2f65f649e42375b3826b1c45085857c1ccdf1865ea69c6dbaa4f12f4f546",
+      "bytes": 102511
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/index.html",
+      "target": "原型/预算管理/预算优化/prototype/index.html",
+      "sha256": "5043abb6b11bac69195f02d9607a0cdaa57656479e4f9dcebfa648d0096a8ac7",
+      "bytes": 2908
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/model.js",
+      "target": "原型/预算管理/预算优化/prototype/model.js",
+      "sha256": "2e57ebcdc1d7c4e58d4fccb4392b11cc10093d06f9290260db123fb906a8c748",
+      "bytes": 6697
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview-annual.png",
+      "target": "原型/预算管理/预算优化/prototype/preview-annual.png",
+      "sha256": "4c4ad995aa01062769e42b11b7be3924782c05f23588a858eefdff1c9c118c3b",
+      "bytes": 145221
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview-batch.png",
+      "target": "原型/预算管理/预算优化/prototype/preview-batch.png",
+      "sha256": "5e23b7c49948b0cb3d8f485311fbcde7cdc9e885d31b17742f0ac6b03414c0cd",
+      "bytes": 83182
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview-control.png",
+      "target": "原型/预算管理/预算优化/prototype/preview-control.png",
+      "sha256": "8f53fd9b97bd590e2aadad60218cb56274d5bf87b997c42b249c4cd9bf845af7",
+      "bytes": 116510
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview-detail-fields.png",
+      "target": "原型/预算管理/预算优化/prototype/preview-detail-fields.png",
+      "sha256": "0626e83bff7d9e9a6dc27cb4e8562dc22b76783e9ca2e915962617a27f7675de",
+      "bytes": 152939
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview-document-types.png",
+      "target": "原型/预算管理/预算优化/prototype/preview-document-types.png",
+      "sha256": "61e91bffb9f5cba2e9492652a38609a7206335b206a0ea5e64ac789ef1b8114c",
+      "bytes": 141244
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview-overview.png",
+      "target": "原型/预算管理/预算优化/prototype/preview-overview.png",
+      "sha256": "e52befb7f6aa9a5ce31130c8151232ffb1822efbb4741b8700f7724b06256d11",
+      "bytes": 76272
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/preview.png",
+      "target": "原型/预算管理/预算优化/prototype/preview.png",
+      "sha256": "a6a7ababadef3547af85619e824c14c5473402d0ef7d9b98459a745878e38177",
+      "bytes": 155540
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/README.md",
+      "target": "原型/预算管理/预算优化/prototype/README.md",
+      "sha256": "e66bd63687af4c94d70a860fabd64a4bb56c54f318f633218cc38aff802e51da",
+      "bytes": 7827
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/reimbursement-detail.html",
+      "target": "原型/预算管理/预算优化/prototype/reimbursement-detail.html",
+      "sha256": "8efdf21f21e9a6fb3ce07264668e3f7030d80cf4587908b3a30f58844824c1b1",
+      "bytes": 45257
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/reimbursement-preview.png",
+      "target": "原型/预算管理/预算优化/prototype/reimbursement-preview.png",
+      "sha256": "7e15bfeb1107c541b29c41679f052b5fd22c848751469a00848fac7914104f4e",
+      "bytes": 32462
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/reimbursement-runtime.js",
+      "target": "原型/预算管理/预算优化/prototype/reimbursement-runtime.js",
+      "sha256": "17b99c86eafee5392d56e29ad5e88938a23eff5c6f4e2ce07de3ed0c128cdcd2",
+      "bytes": 3952
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/reimbursement.js",
+      "target": "原型/预算管理/预算优化/prototype/reimbursement.js",
+      "sha256": "f86b3ee0ee7a45d9913a1848e8ed6a71b7bddc5067690a69c21bb4c34004244e",
+      "bytes": 521
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/prototype/styles.css",
+      "target": "原型/预算管理/预算优化/prototype/styles.css",
+      "sha256": "2b351179232bfdd11baed4653be19df5fb565d8fb69a0b78ae08e9830d7723a4",
+      "bytes": 39863
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/预算管理交互原型.html",
+      "target": "原型/预算管理/预算优化/预算管理交互原型.html",
+      "sha256": "2b6d11034a34d0a8edaeb98cd3d8e741f6c10ace66c8646bcf14775a23dbe4b5",
+      "bytes": 190844
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/预算管理优化_原型页面与功能清单.md",
+      "target": "原型/预算管理/预算优化/预算管理优化_原型页面与功能清单.md",
+      "sha256": "220f55739d067cb824b54f59659ec233f8161d6ab2b0d66ae60478a89359682f",
+      "bytes": 25698
+    },
+    {
+      "source": "D:/wzz/wzz/预算管理/预算优化/预算管理优化_原型页面与功能清单.md",
+      "target": "文档/迭代/预算优化/预算管理优化_原型页面与功能清单.md",
+      "sha256": "220f55739d067cb824b54f59659ec233f8161d6ab2b0d66ae60478a89359682f",
+      "bytes": 25698
+    }
+  ]
+}

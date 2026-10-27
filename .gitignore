@@ -1,0 +1,11 @@
+# Local document rendering and runtime caches
+/_docx_render_*/
+/_docx_review_*/
+**/__pycache__/
+*.py[cod]
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+/.preview/

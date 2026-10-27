@@ -54,11 +54,22 @@ function closeWorkspace(key,discard=false){
   const wasActive=workspace.active===key;workspace.tabs.splice(index,1);closeDrawer();
   if(wasActive){const next=workspace.tabs.find(t=>t.key===tab.returnKey)||workspace.tabs[Math.max(0,index-1)];workspace.active=next?.key||null;Object.assign(S,next?structuredClone(next.state):freshWorkspace('empty',S.team));history.replaceState(null,'',`#${S.page}`);render();window.scrollTo(0,next?.scroll||0);}else render();
 }
+function workspaceLabel(t){return t.page==='overview'?'财务预算':t.page==='execute'?'预算执行':t.page==='budget'?`年度预算 · ${M.teams.find(team=>team.id===t.team).name}`:t.page==='request'?`调整申请 · ${M.teams.find(team=>team.id===t.team).name}`:t.page==='adjustment'?`预算调整 · ${approvalUI.record(t.state.approvalId)?.person||''}`:titles[t.page];}
 function renderWorkspace(){
   $('.workspace-tabs').innerHTML=workspace.tabs.map(t=>{
-    const label=t.page==='overview'?'财务预算':t.page==='execute'?'预算执行':t.page==='budget'?`年度预算 · ${M.teams.find(team=>team.id===t.team).name}`:t.page==='request'?`调整申请 · ${M.teams.find(team=>team.id===t.team).name}`:t.page==='adjustment'?`预算调整 · ${approvalUI.record(t.state.approvalId)?.person||''}`:titles[t.page];
+    const label=workspaceLabel(t);
     return `<div class="workspace-item ${t.key===workspace.active?'current':''}"><button class="workspace-open" data-action="activate-workspace" data-key="${esc(t.key)}" aria-current="${t.key===workspace.active?'page':'false'}">${esc(label)}${(t.key===workspace.active?S.dirty:t.state.dirty)?' <span class="draft-dot" title="未保存">●</span>':''}</button><button class="workspace-close" data-action="close-workspace" data-key="${esc(t.key)}" aria-label="关闭${esc(label)}">×</button></div>`;
   }).join('');
+  window.ERPClient?.publish();
+}
+
+function erpSnapshot(){
+  return {active:workspace.active,tabs:workspace.tabs.map(t=>{
+    const page=t.key===workspace.active?S.page:t.state.page;
+    const nav=['request','application'].includes(page)?'application':['approval','adjustment'].includes(page)?'approval':page==='rules'?'rules':'overview';
+    const label=workspaceLabel(t);
+    return {key:t.key,label,nav,dirty:t.key===workspace.active?S.dirty:t.state.dirty};
+  })};
 }
 
 function navigate(page,attrs={}){
@@ -180,6 +191,7 @@ function render(){
   renderWorkspace();
   $('#content').classList.toggle('approval-content-page',['approval','adjustment','application','request','reimbursement'].includes(S.page));
   renderSidebar();
+  $('#content').dataset.erpPage=S.page;
   $('#content').innerHTML=({overview,execute,budget:budgetPage,actual:details,frozen:details,import:renderImport,rules:renderRules,approval:approvalUI.render,adjustment:adjustmentUI.render,application:applicationUI.entry,request:applicationUI.render,reimbursement:window.renderReimbursementExample,empty:()=>'<div class="empty workspace-empty"><div class="empty-symbol">▤</div><b>暂无打开的页面</b><span>请从左侧菜单打开页面</span></div>'}[S.page])();
 }
 function drawer(title,subtitle,body,foot='',wide=false){$('#overlay').hidden=false;$('#overlay').innerHTML=`<section class="drawer ${wide?'wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}" tabindex="-1"><div class="drawer-head"><div><h2>${title}</h2><p>${subtitle}</p></div><button class="close" data-action="close" aria-label="关闭">×</button></div><div class="drawer-body">${body}</div><div class="drawer-foot">${foot}<button data-action="close">关闭</button></div></section>`;document.body.style.overflow='hidden';$('#overlay .drawer').focus();}
@@ -304,4 +316,13 @@ $('#overlay').addEventListener('click',e=>{if(e.target===$('#overlay'))closeDraw
 window.addEventListener('message',event=>{const frame=$('.reimbursement-frame');if(frame&&event.source===frame.contentWindow&&event.data?.type==='budget-close-reimbursement')closeWorkspace('reimbursement');});
 window.addEventListener('hashchange',()=>{const p=location.hash.slice(1);if(titles[p]){if(['actual','frozen'].includes(p)){S.page=p;closeDrawer();render();}else openWorkspace(p);}});
 render();
+document.querySelector('erp-iteration-marks')?.configure(window.BudgetIterationMarks,{
+  root:$('#content'),
+  toolbar:!window.ERPClient?.hosted,storage:!window.ERPClient?.hosted,
+  configGlobal:'BudgetIterationMarks',
+  documentBase:window.BudgetMarkDocumentBase||new URL('../../../../',location.href).href,
+  navigate:(page,mark)=>{if(!titles[page])return;if(page!==S.page){if(['actual','frozen'].includes(page))openDetail(page,'',M.months[0],M.months[11]);else openWorkspace(page);}if(page==='execute'){if(mark.id==='execution-annual')S.mode='annual';if(['execution-monthly','execution-balance'].includes(mark.id))S.mode='monthly';render();}}
+});
+if(window.ERPClient?.hosted)window.ERPIterationBridge.renderer(document.querySelector('erp-iteration-marks'),'budget');
+window.ERPClient?.connect({snapshot:erpSnapshot,navigate:page=>{if(['overview','rules','application','approval'].includes(page))openWorkspace(page);},activate:activateWorkspace,close:closeWorkspace});
 })();
