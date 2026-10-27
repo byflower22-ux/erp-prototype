@@ -1,6 +1,6 @@
 {
-  "date": "2026-10-27T09:33:35.909Z",
-  "entry": "file:///D:/wzz/ERP/index.html",
+  "date": "2026-10-27T09:36:11.556Z",
+  "entry": "https://byflower22-ux.github.io/erp-prototype/",
   "checks": [
     "统一入口显示公共外壳，预算原外壳隐藏",
     "菜单打开并复用工作页签，预算与办公菜单高亮同步",
