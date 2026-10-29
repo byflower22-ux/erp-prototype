@@ -4,6 +4,7 @@
 
 - Git 仓库：https://github.com/byflower22-ux/erp-prototype
 - 在线入口：https://byflower22-ux.github.io/erp-prototype/
+- 最新发布：[2026-10-29 预算优化更新与验收](发布记录_2026-10-29.md)。预览地址保持不变。
 - 发布方式：GitHub Pages 从 `main` 分支根目录发布，`.nojekyll` 保留原目录和静态资源，不依赖 Jekyll 或后端构建。
 
 ## 需求与发布流程

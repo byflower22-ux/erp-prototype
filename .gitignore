@@ -1,4 +1,5 @@
 # Local document rendering and runtime caches
+**/.cache/
 /_docx_render_*/
 /_docx_review_*/
 **/__pycache__/
