@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-04T04:07:10.657Z",
+  "entry": "https://byflower22-ux.github.io/erp-prototype/",
+  "commit": "410edc793a557ad7b31c9b148382ccf652991a02",
+  "checks": [
+    {
+      "file": "index.html",
+      "status": 200,
+      "bytes": 2475,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/公共/version-marks-config.js",
+      "status": 200,
+      "bytes": 8874,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/预算管理/预算优化/prototype/app.js",
+      "status": 200,
+      "bytes": 53177,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/预算管理/预算优化/prototype/application.js",
+      "status": 200,
+      "bytes": 13738,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/预算管理/预算优化/预算管理交互原型_当前.html",
+      "status": 200,
+      "bytes": 252260,
+      "gitContentMatches": true
+    },
+    {
+      "file": "文档/迭代/预算优化/操作手册.md",
+      "status": 200,
+      "bytes": 9786,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/付款报销/回单对接/index.html",
+      "status": 200,
+      "bytes": 19925,
+      "gitContentMatches": true
+    }
+  ]
+}
