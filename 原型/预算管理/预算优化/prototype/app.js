@@ -297,7 +297,6 @@ window.addEventListener('resize',hideExecutionNote);
 document.addEventListener('focusin',e=>{if(e.target.closest('.execution-note-trigger'))showExecutionNote();const row=e.target.closest('.cascader-parent');if(row)showSubjectBranch(row.dataset.cascaderGroup);});
 document.addEventListener('change',e=>{
   const el=e.target;
-  if(el.id==='application-period'){applicationUI.change(el);return;}
   if(el.id?.startsWith('approval-')||el.dataset.approvalCheck){approvalUI.change(el);return;}
   if(el.id==='team-select'){openWorkspace(S.page,el.value);return;}
   if(el.id==='month-select'){S.month=el.value;render();return;}
