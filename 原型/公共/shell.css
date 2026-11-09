@@ -9,5 +9,4 @@
 body{display:flex;flex-direction:column;height:100vh}.erp-topbar{flex-shrink:0}.erp-layout{height:auto;flex:1;min-height:0}#erp-version-marks{flex-shrink:0}
 
 /* 手机上导航覆盖内容，选择菜单后收起，保留完整业务宽度。 */
-.erp-subnav button.active,.erp-subnav button.active:hover{background:#fff0ee;color:var(--red);border-left-color:var(--red)}
 @media(max-width:600px){.erp-layout{position:relative}.erp-sidebar{position:absolute;inset:0 auto 0 0;z-index:30;width:220px;box-shadow:8px 0 32px #1b2d4a30}.erp-subnav button,.erp-sidebar summary{min-height:44px}#erp-version-marks{display:none}.erp-topbar{height:52px}.erp-brand b{font-size:17px}.erp-mark{font-size:18px}.erp-brand>button{width:44px;height:44px}.erp-tabs{min-height:40px;padding-left:7px}.erp-tab button{font-size:12px;padding:8px 10px}}

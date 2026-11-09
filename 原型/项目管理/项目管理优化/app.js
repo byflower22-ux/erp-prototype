@@ -484,13 +484,9 @@
   window.addEventListener('storage',event=>{if(event.key===KEY&&event.newValue!==lastRaw){storageProblem='演示数据已在其他窗口变更，请刷新后继续，避免覆盖。';renderStorage();}});
   let marksConfigured=false;
   const marks=document.getElementById('project-marks');
-  const markDefinitions=[['consultants','咨询师列表','[data-change="consultants"]','咨询师档案管理','基础档案、项目参与情况与项目人效分析。'],['schedule','项目日程','[data-change="schedule"]','快捷工时填报','页面直接填写和修改；0.5小时步进；保存后计入核算。'],['projects','项目交付单','[data-change="project-list"]','项目核算设置','比例按月生效，预计费用手工分月。'],['project-analysis','项目分析','[data-change="analysis"]','项目月度与累计核算','交付收入为利润基数，项目所得税按累计差额。'],['person-analysis','项目人效分析','[data-change="analysis"]','个人核算及盈亏平衡','人员奖金仅计个人，盈亏平衡使用用户确认公式。']];
-  const markConfig={id:'project-optimization',versions:[{id:'ERP-I005',label:'项目管理优化'}],marks:markDefinitions.map(([page,pageLabel,selector,title,description])=>({id:'project-'+page,version:'ERP-I005',type:'new',scope:'page',module:'project',page,pageLabel,selector,title,description,delivery:'前端Demo · 虚构数据 · 真实接口待联调',documents:[{title:'本迭代需求',url:'文档/迭代/项目管理优化/详细需求说明.md'}]}))};
-  // Expose the configuration for the common host without changing the old published marks.
+  const markConfig={id:'project-optimization',versions:ERPProjectAnalysisMarks.versions,marks:ERPProjectAnalysisMarks.marks};
   window.ProjectIterationMarks=markConfig;
-  markConfig.versions.push(ERPProjectAnalysisMarks.version);markConfig.marks.push(...ERPProjectAnalysisMarks.marks);
   marks.configure(markConfig,{root:content,toolbar:!ERPClient.hosted,storage:!ERPClient.hosted,configGlobal:'ProjectIterationMarks',documentBase:new URL('../../../',location.href).href,getPage:()=>content.dataset.erpPage,navigate:page=>navigate(page)});
-  if(!ERPClient.hosted)ERPProjectAnalysisMarks.upgrade(marks);
   marksConfigured=true;
   if(ERPClient.hosted)ERPIterationBridge.renderer(marks,'project');
   ERPClient.connect({snapshot,navigate,activate,close});

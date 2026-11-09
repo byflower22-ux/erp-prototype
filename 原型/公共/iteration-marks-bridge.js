@@ -48,7 +48,7 @@
         const request=Date.now().toString(36)+Math.random().toString(36).slice(2);picking={module,request,editor};element.refresh();send(module,{type:'pick',request});frames[module].focus();return true;
       }
     });
-    const pendingLocate=new Map();migrate(element);window.ERPProjectAnalysisMarks?.upgrade(element);element.refresh();
+    const pendingLocate=new Map();migrate(element);element.refresh();
     window.addEventListener('message',event=>{
       const module=Object.keys(frames).find(key=>frames[key].contentWindow===event.source),data=event.data;
       if(!module||data?.protocol!==protocol)return;

@@ -1,10 +1,14 @@
-/* Shared workbench defaults published from the confirmed browser export (2026-10-27). */
+/* Project defaults saved from the user export (2026-11-09). */
 window.ERPVersionMarks = {
   "id": "erp-version-marks",
   "versions": [
     {
       "id": "ERP-I003",
       "label": "预算优化"
+    },
+    {
+      "id": "ERP-I006",
+      "label": "项目管理与分析"
     }
   ],
   "marks": [
@@ -225,6 +229,85 @@ window.ERPVersionMarks = {
       "scope": "page",
       "module": "budget",
       "selector": ".adjustment-comparison"
+    },
+    {
+      "id": "mark-mw94nbgi-u7z35",
+      "version": "ERP-I006",
+      "type": "improved",
+      "title": "项目成员新增收入比例",
+      "page": "navigation",
+      "pageLabel": "公共菜单",
+      "description": "",
+      "delivery": "",
+      "scope": "menu",
+      "selector": "button[data-page=\"projects\"]",
+      "documents": []
+    },
+    {
+      "id": "mark-mw95jua1-r9wle",
+      "version": "ERP-I006",
+      "type": "improved",
+      "title": "新增咨询师角色及收入比例配置",
+      "page": "projects",
+      "pageLabel": "projects",
+      "description": "",
+      "delivery": "",
+      "scope": "page",
+      "module": "project",
+      "documents": [],
+      "selector": "tr:nth-of-type(1) > td:nth-of-type(12) > button[data-action=\"project-detail\"]:nth-of-type(1)"
+    },
+    {
+      "id": "mark-mw94o8uq-y7ahw",
+      "version": "ERP-I006",
+      "type": "new",
+      "title": "新增项目日程管理",
+      "page": "navigation",
+      "pageLabel": "公共菜单",
+      "description": "",
+      "delivery": "",
+      "scope": "menu",
+      "selector": "button[data-page=\"schedule\"]",
+      "documents": []
+    },
+    {
+      "id": "mark-mw94opk0-5xcix",
+      "version": "ERP-I006",
+      "type": "new",
+      "title": "新增项目分析",
+      "page": "navigation",
+      "pageLabel": "公共菜单",
+      "description": "",
+      "delivery": "",
+      "scope": "menu",
+      "selector": "button[data-page=\"project-analysis\"]",
+      "documents": []
+    },
+    {
+      "id": "mark-mw94p5bz-wds46",
+      "version": "ERP-I006",
+      "type": "new",
+      "title": "新增项目人效分析",
+      "page": "navigation",
+      "pageLabel": "公共菜单",
+      "description": "",
+      "delivery": "",
+      "scope": "menu",
+      "selector": "button[data-page=\"person-analysis\"]",
+      "documents": []
+    },
+    {
+      "id": "mark-mw94poov-dyygp",
+      "version": "ERP-I006",
+      "type": "new",
+      "title": "新增咨询师管理",
+      "page": "navigation",
+      "pageLabel": "公共菜单",
+      "description": "",
+      "delivery": "",
+      "scope": "menu",
+      "selector": "button[data-page=\"consultants\"]",
+      "documents": []
     }
   ]
 };

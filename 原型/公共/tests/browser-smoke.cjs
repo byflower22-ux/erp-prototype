@@ -24,6 +24,7 @@ fs.mkdirSync(output,{recursive:true});
   async function active(module,key) {await page.waitForFunction(id=>document.querySelector('#erp-tabs button[aria-current="page"]')?.dataset.tabId===id,module+':'+key);}
   try {
     await page.goto(entry);
+    await nav('budget','overview').click();
     await active('budget','overview');
     const budget=page.frames().find(f=>f.url().includes('/prototype/index.html'));
     assert.ok(budget);
@@ -65,14 +66,14 @@ fs.mkdirSync(output,{recursive:true});
     await receipt.locator('#keyword-input').fill(receiptId);
     await receipt.locator('#search-button').click();
     const filteredText=await receipt.locator('#receipt-table-body').innerText();
-    const receiptUrl=receipt.url(), budgetUrl=budget.url();
+    const receiptUrl=receipt.url(), budgetUrl=budget.url(),frameCount=page.frames().length;
     await tab('budget','budget-t1').click();await active('budget','budget-t1');
     assert.equal(await input.inputValue(),'23457');
     await tab('receipt','list').click();await active('receipt','list');
     assert.equal(await receipt.locator('#keyword-input').inputValue(),receiptId);
     assert.equal(await receipt.locator('#receipt-table-body').innerText(),filteredText);
     assert.equal(receipt.url(),receiptUrl);assert.equal(budget.url(),budgetUrl);
-    assert.equal(page.frames().length,3);
+    assert.equal(page.frames().length,frameCount);
     passed('跨模块切换保留预算编辑、回单查询结果，复用常驻业务页面');
 
     await receipt.locator('#receipt-table-body .title-link').first().click();await active('receipt','detail');
@@ -131,7 +132,7 @@ fs.mkdirSync(output,{recursive:true});
     assert.equal(await page.locator('nav [aria-current="page"]').count(),0);
     await nav('receipt','list').click();await active('receipt','list');
     assert.equal(await receipt.locator('#keyword-input').inputValue(),receiptId);
-    assert.equal(page.frames().length,3);
+    assert.equal(page.frames().length,frameCount);
     passed('关闭全部页签显示空态，菜单重新打开保留业务查询');
 
     // Direct entry still uses the existing standalone layout.
