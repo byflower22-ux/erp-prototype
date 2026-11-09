@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-09T11:02:31.636Z",
+  "entry": "file:///D:/wzz/ERP/%E6%96%87%E6%A1%A3/%E8%BF%AD%E4%BB%A3/%E5%9C%A8%E7%BA%BF%E9%A2%84%E8%A7%88%E9%83%A8%E7%BD%B2/.cache/loading-candidate/index.html",
+  "checks": [
+    "五个当前菜单页面加载、高亮及页签复用",
+    "工时周表与月表切换",
+    "工时实际保存、跨页保留",
+    "管理人员日程只读",
+    "原预算默认标记保留且追加项目版本标记",
+    "390像素手机日程加载且无横向溢出"
+  ],
+  "errors": [],
+  "failedRequests": []
+}

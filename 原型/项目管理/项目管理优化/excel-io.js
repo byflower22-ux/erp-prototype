@@ -1,8 +1,25 @@
 /* Offline Excel transport; all business calculations use ProjectModel. */
 (function(root,factory){
-  if(typeof module==='object'&&module.exports)module.exports=factory(require('./vendor/exceljs-4.4.0.min.js'),require('./model.js'));
-  else root.ProjectExcel=factory(root.ExcelJS,root.ProjectModel);
-})(typeof globalThis!=='undefined'?globalThis:this,function(ExcelJS,M){
+  if(typeof module==='object'&&module.exports)module.exports=factory(()=>Promise.resolve(require('./vendor/exceljs-4.4.0.min.js')),require('./model.js'));
+  else {
+    const url=new URL('vendor/exceljs-4.4.0.min.js',document.currentScript.src).href;
+    let loading;
+    function loadExcel(){
+      if(root.ExcelJS)return Promise.resolve(root.ExcelJS);
+      if(!loading)loading=new Promise((resolve,reject)=>{
+        const script=document.createElement('script');let timer;
+        const finish=error=>{clearTimeout(timer);script.onload=script.onerror=null;if(error){script.remove();loading=null;reject(error);}else resolve(root.ExcelJS);};
+        script.src=url;script.async=true;
+        script.onload=()=>finish(root.ExcelJS?null:Error('Excel组件未能启动，请重试'));
+        script.onerror=()=>finish(Error('Excel组件下载失败，请检查网络后重试'));
+        timer=setTimeout(()=>finish(Error('Excel组件下载超时，请检查网络后重试')),15000);
+        document.head.append(script);
+      });
+      return loading;
+    }
+    root.ProjectExcel=factory(loadExcel,root.ProjectModel);
+  }
+})(typeof globalThis!=='undefined'?globalThis:this,function(loadExcel,M){
   'use strict';
   const schema='ERP-I005-XLSX-v2',order=['salary','bonus','commission','exception','fixed'];
   const names={commission:'项目人员提成',exception:'项目异常费用',fixed:'项目固定成本分摊'};
@@ -17,6 +34,7 @@
   function amount(state,type,month,r){const collection={salary:'salaries',bonus:'bonuses',commission:'commissions',exception:'expenses',fixed:'expenses'}[type];return state[collection].find(x=>x.month===month&&(!r.personId||r.personId===x.personId)&&(!r.projectId||r.projectId===x.projectId)&&(!['exception','fixed'].includes(type)||x.category===type))?.amount??null;}
   async function createTemplate(state,month,id){
     available(state,month);if(!id)fail('缺少模板批次标识');
+    const ExcelJS=await loadExcel();
     const book=new ExcelJS.Workbook();book.creator='ERP项目管理优化Demo';
     const personnel=state.people.map((p,i)=>({personId:p.id,cells:[i+1,p.id,p.name,month,amount(state,'salary',month,{personId:p.id}),null,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:6,type:'salary'},{column:8,type:'bonus'}]}));
     const projects=[];
@@ -50,6 +68,7 @@
   }
   async function readTemplate(buffer,state,manifests){
     if(!buffer||buffer.byteLength>5*1024*1024)fail('Excel 文件须小于 5 MB');
+    const ExcelJS=await loadExcel();
     const book=new ExcelJS.Workbook();try{await book.xlsx.load(buffer);}catch{fail('无法读取 Excel，请上传对话中收到的 .xlsx 模板');}
     const first=book.getWorksheet('人员固定成本');
     if(!first||first.getCell('A4').value!==schema)fail('不是当前两 Sheet 核算模板，请在对话中重新索取 Excel');

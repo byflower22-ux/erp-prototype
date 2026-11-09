@@ -18,7 +18,7 @@ const out=process.env.ERP_QA_OUTPUT||path.join(root,'文档/迭代/项目管理�
    const frame=page.frameLocator('iframe[data-module="project"]');await frame.locator('#content h1').waitFor();
    assert.ok((await frame.locator('#content').innerText()).length>100);
    assert.equal(await nav(key).getAttribute('aria-current'),'page');
-   assert.equal(await nav(key).evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 240, 238)');
+   assert.equal(await nav(key).evaluate(el=>getComputedStyle(el).borderLeftWidth),'3px');
    await nav(key).click();assert.equal(await page.locator(`#erp-tabs [data-tab-id="project:${key}"][data-action="activate"]`).count(),1);
   }
   assert.equal(await page.locator('iframe[data-module="project"]').count(),1);pass('五个当前菜单页面加载、高亮及页签复用');

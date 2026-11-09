@@ -8,6 +8,11 @@
     style.rel = 'stylesheet';
     style.href = new URL('hosted.css', document.currentScript.src).href;
     document.head.append(style);
+    // Report startup/runtime failures to the workbench instead of leaving its loader open.
+    window.addEventListener('error',event=>{
+      if(event.target!==window&&event.target?.tagName!=='SCRIPT')return;
+      parent.postMessage({protocol:'erp-workspace-v1',type:'load-error'},'*');
+    },true);
   }
   const publish = () => {
     if (hosted && adapter) parent.postMessage({protocol:'erp-workspace-v1', type:'snapshot', ...adapter.snapshot()}, '*');

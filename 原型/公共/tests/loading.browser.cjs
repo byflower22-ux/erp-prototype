@@ -1,0 +1,22 @@
+/* Resource interruption regression: run locally or against ERP_ENTRY_URL. */
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const {chromium}=require(process.env.ERP_PLAYWRIGHT_MODULE||'C:/Users/BS/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const root=process.env.ERP_TEST_ROOT||path.resolve(__dirname,'../../..'),out=process.env.ERP_QA_OUTPUT||path.join(root,'文档/迭代/在线预览部署/.cache/加载回归');
+const M=require('../../项目管理/项目管理优化/model.js');
+const server=http.createServer((req,res)=>{let file=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(file!==root&&!file.startsWith(root+path.sep))return res.writeHead(403).end();if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');if(!fs.existsSync(file))return res.writeHead(404).end();res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.css':'text/css'})[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);});
+(async()=>{
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const entry=process.env.ERP_ENTRY_URL||`http://127.0.0.1:${server.address().port}/`,b=await chromium.launch({channel:'chrome',headless:true}),checks=[];
+ const pass=name=>{checks.push(name);console.log('PASS '+name);};
+ async function setup(before){const c=await b.newContext(),p=await c.newPage();if(before)await before(p);await p.goto(entry,{waitUntil:'domcontentloaded'});return {c,p};}
+ const nav=p=>p.locator('nav button[data-module="project"][data-page="schedule"]');
+ const active=p=>p.waitForFunction(()=>document.querySelector('#erp-tabs [aria-current="page"]')?.dataset.tabId==='project:schedule',null,{timeout:5000});
+ try{
+  {let requested=false;const {c,p}=await setup(p=>p.route('**/exceljs-*.js*',()=>{requested=true;}));await nav(p).click();await active(p);assert.equal(requested,false,'Excel must not block initial page');await p.frameLocator('iframe[data-module="project"]').locator('.weekly-table').waitFor();pass('Excel资源不可达时仍可打开日程');await c.close();}
+  {const {c,p}=await setup(p=>p.route('**/schedule.js*',r=>r.abort()));await nav(p).click();await p.locator('#erp-load-retry').waitFor({timeout:5000});assert.match(await p.locator('#erp-loading').innerText(),/未能打开/);await p.unroute('**/schedule.js*');await p.locator('#erp-load-retry').click();await active(p);assert.equal(await p.locator('iframe[data-module="project"]').count(),1);pass('脚本失败显示错误，一键重试恢复');await c.close();}
+  {const {c,p}=await setup(async p=>{await p.clock.install();await p.route(url=>decodeURI(url.pathname).endsWith('/项目管理优化/index.html'),()=>{});});await nav(p).click();await p.clock.runFor(21000);await p.locator('#erp-load-retry').waitFor({timeout:5000});await p.locator('nav button[data-module="budget"][data-page="overview"]').click();await p.waitForFunction(()=>document.querySelector('#erp-loading').hidden);pass('页面请求超时可见提示，切回预算页面解除遮罩');await c.close();}
+  {const c=await b.newContext();const state=M.seed();delete state.demoFixtures;state.projects=state.projects.slice(0,3);state.members=state.members.filter(m=>state.projects.some(p=>p.id===m.projectId));await c.addInitScript(s=>localStorage.setItem('erp-project-demo-v1',JSON.stringify(s)),state);const p=await c.newPage();await p.goto(entry,{waitUntil:'domcontentloaded'});await nav(p).click();await active(p);assert.equal(await p.locator('#erp-loading').isVisible(),false);pass('旧示例数据及启动时立即切换正常');await c.close();}
+  {const {c,p}=await setup(p=>p.route('**/exceljs-*.js*',r=>r.abort()));await nav(p).click();await active(p);const f=p.frameLocator('iframe[data-module="project"]');await f.locator('#lobster-tool').click();const send=async()=>{await f.locator('#lobster-input').fill('录入2026年11月核算数据');await f.locator('[data-action="chat-send"]').click();await f.locator('[data-action="chat-send"]:enabled').waitFor();};await send();assert.match(await f.locator('#lobster-history').innerText(),/Excel组件下载失败/);await p.unroute('**/exceljs-*.js*');await send();await f.locator('[data-action="chat-download"]').waitFor();pass('Excel按需下载失败可重试并生成附件');await c.close();}
+  fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'loading-report.json'),JSON.stringify({entry,date:new Date().toISOString(),checks},null,2));
+ }finally{await b.close();server.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;server.close();});

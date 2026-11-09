@@ -8,9 +8,20 @@
   const sources = {
     budget:'原型/预算管理/预算优化/prototype/index.html?erp=1#overview',
     receipt:'原型/付款报销/回单对接/index.html?erp=1',
-    project:'原型/项目管理/项目管理优化/index.html?erp=1'
+    project:'原型/项目管理/项目管理优化/index.html?erp=1&v=20261109-loading1'
   };
   let requestedModule = null, previousNav = null;
+  let loadingTimer, retryRequest;
+  const loading=document.getElementById('erp-loading'),loadingText=document.getElementById('erp-loading-text'),retry=document.getElementById('erp-load-retry');
+  function loadFailed(module){
+    if(requestedModule!==module)return;
+    clearTimeout(loadingTimer);loading.hidden=false;
+    loadingText.textContent='页面未能打开，可能是网络超时或页面资源加载失败。请重试。';retry.hidden=false;
+  }
+  function startLoading(module,value){
+    clearTimeout(loadingTimer);retryRequest={module,value};loading.hidden=false;retry.hidden=true;loadingText.textContent='正在打开页面…';
+    loadingTimer=setTimeout(()=>loadFailed(module),20000);
+  }
   const stage = document.getElementById('erp-stage');
   const iterationMarks=ERPIterationBridge.host({
     element:document.getElementById('erp-version-marks'),frames,
@@ -22,6 +33,7 @@
   }
   function command(module, value) {
     requestedModule = module;
+    startLoading(module,value);
     if (!frames[module]) {
       const frame = document.createElement('iframe');
       frame.title = {budget:'预算管理业务页面',receipt:'付款报销业务页面',project:'项目管理与核算业务页面'}[module];
@@ -31,7 +43,7 @@
       pending[module] = value;
       frame.src = sources[module];
       stage.append(frame);
-      document.getElementById('erp-loading').hidden = false;
+      frame.addEventListener('error',()=>loadFailed(module));
     } else if (ready.has(module)) post(module, value);
     else pending[module] = value;
   }
@@ -69,6 +81,11 @@
     iterationMarks.update();
   }
   window.addEventListener('message', event => {
+    if(event.data?.protocol==='erp-workspace-v1'&&event.data.type==='load-error'){
+      const module=Object.keys(frames).find(key=>frames[key].contentWindow===event.source);
+      if(module)loadFailed(module);
+      return;
+    }
     const parsed = ERPWorkspace.readMessage(event,Object.fromEntries(Object.entries(frames).map(([key,frame])=>[key,frame.contentWindow])));
     if (!parsed) return;
     const {module,snapshot} = parsed;
@@ -78,11 +95,20 @@
     }
     const previous = workspace.active;
     workspace.update(module,snapshot,requestedModule === module);
-    if (requestedModule === module) {requestedModule=null;document.getElementById('erp-loading').hidden=true;}
+    if (requestedModule === module) {requestedModule=null;clearTimeout(loadingTimer);loading.hidden=true;retry.hidden=true;}
     render();
     // The receiving business module owns its state; activate its selected tab on fallback.
     const active = workspace.tabs.find(t=>t.id===workspace.active);
     if (active && previous !== active.id && active.module !== module) post(active.module,{action:'activate',key:active.key});
+  });
+  retry.addEventListener('click',()=>{
+    if(!retryRequest)return;
+    const {module,value}=retryRequest;
+    // A module with open tabs may hold unsaved changes: retry its command in place.
+    if(!workspace.tabs.some(tab=>tab.module===module)){
+      frames[module]?.remove();delete frames[module];ready.delete(module);delete pending[module];
+    }
+    command(module,value);
   });
   document.querySelector('nav').addEventListener('click', event => {
     const button = event.target.closest('button[data-module]');
