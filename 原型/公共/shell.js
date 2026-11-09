@@ -1,17 +1,21 @@
 (function () {
   'use strict';
+  const phoneViewport=matchMedia('(max-width:600px)');
+  function closePhoneNav(){if(!phoneViewport.matches)return;document.body.classList.add('nav-collapsed');const toggle=document.getElementById('toggle-nav');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','展开导航');}
+  closePhoneNav();phoneViewport.addEventListener('change',closePhoneNav);
   const workspace = ERPWorkspace.createWorkspace();
   const frames = {}, ready = new Set(), pending = {};
   const sources = {
     budget:'原型/预算管理/预算优化/prototype/index.html?erp=1#overview',
-    receipt:'原型/付款报销/回单对接/index.html?erp=1'
+    receipt:'原型/付款报销/回单对接/index.html?erp=1',
+    project:'原型/项目管理/项目管理优化/index.html?erp=1'
   };
   let requestedModule = null, previousNav = null;
   const stage = document.getElementById('erp-stage');
   const iterationMarks=ERPIterationBridge.host({
     element:document.getElementById('erp-version-marks'),frames,
     getActive:()=>workspace.tabs.find(tab=>tab.id===workspace.active),
-    navigate:module=>command(module,{action:'navigate',page:'overview'})
+    navigate:module=>command(module,{action:'navigate',page:module==='project'?'schedule':'overview'})
   });
   function post(module, command) {
     frames[module].contentWindow.postMessage({protocol:'erp-workspace-v1',type:'command',...command}, '*');
@@ -20,7 +24,7 @@
     requestedModule = module;
     if (!frames[module]) {
       const frame = document.createElement('iframe');
-      frame.title = module === 'budget' ? '预算管理业务页面' : '付款报销业务页面';
+      frame.title = {budget:'预算管理业务页面',receipt:'付款报销业务页面',project:'项目管理与核算业务页面'}[module];
       frame.dataset.module = module;
       frame.hidden = true;
       frames[module] = frame;
@@ -82,7 +86,7 @@
   });
   document.querySelector('nav').addEventListener('click', event => {
     const button = event.target.closest('button[data-module]');
-    if (button) command(button.dataset.module,{action:'navigate',page:button.dataset.page});
+    if (button) {command(button.dataset.module,{action:'navigate',page:button.dataset.page});closePhoneNav();}
   });
   document.getElementById('erp-tabs').addEventListener('click', event => {
     const button = event.target.closest('button[data-tab-id]');

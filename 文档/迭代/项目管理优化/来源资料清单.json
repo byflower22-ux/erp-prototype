@@ -1,0 +1,45 @@
+{
+  "iteration": "ERP-I005",
+  "name": "项目管理优化",
+  "collectedDate": "2026-11-09",
+  "sourceRoot": "D:\\wzz\\wzz\\项目管理及核算",
+  "note": "两份 Markdown 原文归档；两份 Excel 仅只读分析并登记原位置，未迁入 ERP。哈希用于核对本次读取基线，不代表业务验收。",
+  "files": [
+    {
+      "name": "项目与人员核算建设计划_2026-11-06.md",
+      "source": "D:\\wzz\\wzz\\项目管理及核算\\项目与人员核算建设计划_2026-11-06.md",
+      "target": "文档/迭代/项目管理优化/来源资料/项目与人员核算建设计划_2026-11-06.md",
+      "mode": "原文归档",
+      "bytes": 28427,
+      "sourceLastWriteTime": "2026-11-06 17:49:53",
+      "sha256": "504AA03DFB785681528EB2013A95290C431B0DF282EDCFACFDCC5A050791AB8D"
+    },
+    {
+      "name": "咨询师维度测算 (1).xlsx",
+      "source": "D:\\wzz\\wzz\\项目管理及核算\\咨询师维度测算 (1).xlsx",
+      "target": null,
+      "mode": "原位置只读引用",
+      "bytes": 16625,
+      "sourceLastWriteTime": "2026-11-06 18:30:22",
+      "sha256": "8AE3719F4F7705AD88C34AF93A368569EDA0C275A8675C1683C0A2C83AC77236"
+    },
+    {
+      "name": "咨询项目利润模型测算表_脱敏版.xlsx",
+      "source": "D:\\wzz\\wzz\\项目管理及核算\\咨询项目利润模型测算表_脱敏版.xlsx",
+      "target": null,
+      "mode": "原位置只读引用",
+      "bytes": 650618,
+      "sourceLastWriteTime": "2026-11-06 18:29:45",
+      "sha256": "9E74B213B4655E2CB7CB1CDD85B21975D512CD1DD5A00D44D6887F271C71C37D"
+    },
+    {
+      "name": "ERP与小龙虾功能页面分工清单.md",
+      "source": "D:\\wzz\\wzz\\项目管理及核算\\ERP与小龙虾功能页面分工清单.md",
+      "target": "文档/迭代/项目管理优化/来源资料/ERP与小龙虾功能页面分工清单.md",
+      "mode": "原文归档",
+      "bytes": 9949,
+      "sourceLastWriteTime": "2026-11-06 17:57:20",
+      "sha256": "412A2B7144853C4BE52CC74F140632391B66FF53830F5F51E9AFC6881EF0E39F"
+    }
+  ]
+}

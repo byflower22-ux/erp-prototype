@@ -1,0 +1,66 @@
+[
+  {
+    "path": "index.html",
+    "sha256": "1196f58c4976929781225ad1816bb489b28349987f11fa718fd877919bb10637"
+  },
+  {
+    "path": "原型/公共/shell.js",
+    "sha256": "9b7531b04288029e6b730e567e5eeea625302fa7b7d53cccda8b558178be1b97"
+  },
+  {
+    "path": "原型/公共/shell.css",
+    "sha256": "8469f814d40304d3af0e5f8456b6eac94e5c6fd99ee7e819705c4b34a4e1f9da"
+  },
+  {
+    "path": "原型/公共/iteration-marks-bridge.js",
+    "sha256": "ab2353c5b1340c24a9cbd017f08e62aa336ccabb998ac6529dd7c29c6e65ab8f"
+  },
+  {
+    "path": "原型/公共/project-marks-config.js",
+    "sha256": "fc7945c21b624b3325fc384283f81a8b0bae30f7673b593642daefda8392f811"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/analysis.js",
+    "sha256": "663a99ed7e20368ae4fafe5c56a5efadd9e4eae216bdddfcf3233cd3f6a4964b"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/app.js",
+    "sha256": "e9557ae6a2b5786488e03a319766447d8245110ce803e99d03d9caeb73e77ee1"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/finance.js",
+    "sha256": "7eeb5c0191bb0ac3f0d9e1e6ad74cfd2a0ad3c1efe815e9196075aa36cf48d93"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/index.html",
+    "sha256": "463ca5b288438154787f160e1adc31f71df852d68617a436570128826c9b85c3"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/model.js",
+    "sha256": "91be13c0a48abb45c9c760f72da8d70a2d59cc42da9b3e15506686446b28f291"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/schedule.js",
+    "sha256": "8fb1a4446b74ab129da8c03a49ed62bd1f6886d6dfa2b7e9267f0c9295d249bf"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/styles.css",
+    "sha256": "c9e2be167b315068b364ba100bd4860494655f4090a9196dfcd4a5bdc2fa5634"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/tests/browser.cjs",
+    "sha256": "a5b63124c27b33e245852002d996aa67bf5849e7b1d87d4176e204fa17ea8dc2"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/tests/model.test.cjs",
+    "sha256": "e9301b823d037e5df92285d80a66503f2a057e52bac225f84404436d62c79881"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/tests/views.test.cjs",
+    "sha256": "9e3b45365293ce7417f614416e92621169a0d095e30cb3f208aff3a731d206bd"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/ui.js",
+    "sha256": "1581204543468ce9b60b423cbc3528547254af97b4bb946ebcfb887cd0c4166c"
+  }
+]

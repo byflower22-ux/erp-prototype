@@ -1,0 +1,1018 @@
+TAP version 13
+# Subtest: 状态只提供其对应的业务操作
+ok 1 - 状态只提供其对应的业务操作
+  ---
+  duration_ms: 2.079
+  type: 'test'
+  ...
+# Subtest: 审批与驳回改变表单状态并写入日志
+ok 2 - 审批与驳回改变表单状态并写入日志
+  ---
+  duration_ms: 0.6602
+  type: 'test'
+  ...
+# Subtest: 支付必须包含回单并自动归档和模拟金蝶结果
+ok 3 - 支付必须包含回单并自动归档和模拟金蝶结果
+  ---
+  duration_ms: 3.6161
+  type: 'test'
+  ...
+# Subtest: 海外付款主体跳过CBS和回单，支付后直接同步金蝶
+ok 4 - 海外付款主体跳过CBS和回单，支付后直接同步金蝶
+  ---
+  duration_ms: 0.2778
+  type: 'test'
+  ...
+# Subtest: 上传回单后归档并自动模拟金蝶同步结果
+ok 5 - 上传回单后归档并自动模拟金蝶同步结果
+  ---
+  duration_ms: 1.1544
+  type: 'test'
+  ...
+# Subtest: 同步金蝶仅在已支付、已归档、同步失败时可用且重试成功
+ok 6 - 同步金蝶仅在已支付、已归档、同步失败时可用且重试成功
+  ---
+  duration_ms: 0.3028
+  type: 'test'
+  ...
+# Subtest: 最新失败原因带阶段标题且只展示当前未完结阶段
+ok 7 - 最新失败原因带阶段标题且只展示当前未完结阶段
+  ---
+  duration_ms: 0.1696
+  type: 'test'
+  ...
+# Subtest: simulated documents use only the existing payment statuses
+ok 8 - simulated documents use only the existing payment statuses
+  ---
+  duration_ms: 2.8272
+  type: 'test'
+  ...
+# Subtest: simulated data includes an archived document with a partial Kingdee sync failure
+ok 9 - simulated data includes an archived document with a partial Kingdee sync failure
+  ---
+  duration_ms: 3.0114
+  type: 'test'
+  ...
+# Subtest: only archived domestic receipts can start with a simulated Kingdee failure
+ok 10 - only archived domestic receipts can start with a simulated Kingdee failure
+  ---
+  duration_ms: 2.6648
+  type: 'test'
+  ...
+# Subtest: failure fixtures cover both receipt upload and manual Kingdee sync demonstrations
+ok 11 - failure fixtures cover both receipt upload and manual Kingdee sync demonstrations
+  ---
+  duration_ms: 1.717
+  type: 'test'
+  ...
+# Subtest: downstream statuses follow the payment, receipt, and Kingdee sequence
+ok 12 - downstream statuses follow the payment, receipt, and Kingdee sequence
+  ---
+  duration_ms: 1.5773
+  type: 'test'
+  ...
+# Subtest: initial integration timeline records auditable CBS, receipt, and Kingdee nodes
+ok 13 - initial integration timeline records auditable CBS, receipt, and Kingdee nodes
+  ---
+  duration_ms: 2.6345
+  type: 'test'
+  ...
+# Subtest: payment entities are company names rather than bank names
+ok 14 - payment entities are company names rather than bank names
+  ---
+  duration_ms: 1.3867
+  type: 'test'
+  ...
+# Subtest: Kingdee encoding and stage-specific failure reasons match final integration states
+ok 15 - Kingdee encoding and stage-specific failure reasons match final integration states
+  ---
+  duration_ms: 1.3156
+  type: 'test'
+  ...
+# Subtest: simulated data includes a paid document waiting for the CBS receipt pull
+ok 16 - simulated data includes a paid document waiting for the CBS receipt pull
+  ---
+  duration_ms: 1.1976
+  type: 'test'
+  ...
+# Subtest: overseas payer fixtures bypass CBS and receipt processing
+ok 17 - overseas payer fixtures bypass CBS and receipt processing
+  ---
+  duration_ms: 1.2777
+  type: 'test'
+  ...
+# Subtest: filterDocuments combines keyword, status, and boolean filters
+ok 18 - filterDocuments combines keyword, status, and boolean filters
+  ---
+  duration_ms: 4.4244
+  type: 'test'
+  ...
+# Subtest: getPresetRange returns inclusive current-month boundaries
+ok 19 - getPresetRange returns inclusive current-month boundaries
+  ---
+  duration_ms: 0.2223
+  type: 'test'
+  ...
+# Subtest: filterDocuments includes an early-morning record on a custom date-only startDate
+ok 20 - filterDocuments includes an early-morning record on a custom date-only startDate
+  ---
+  duration_ms: 0.3131
+  type: 'test'
+  ...
+# Subtest: getPresetRange uses the preceding calendar year for January previous quarter
+ok 21 - getPresetRange uses the preceding calendar year for January previous quarter
+  ---
+  duration_ms: 1.1308
+  type: 'test'
+  ...
+# Subtest: paginate clamps an out-of-range page to the final page
+ok 22 - paginate clamps an out-of-range page to the final page
+  ---
+  duration_ms: 0.3533
+  type: 'test'
+  ...
+# Subtest: filterDocuments accepts records from the rolling seven-day range including today
+ok 23 - filterDocuments accepts records from the rolling seven-day range including today
+  ---
+  duration_ms: 0.3421
+  type: 'test'
+  ...
+# Subtest: getPresetRange returns the Monday-through-Sunday range for this week
+ok 24 - getPresetRange returns the Monday-through-Sunday range for this week
+  ---
+  duration_ms: 0.2546
+  type: 'test'
+  ...
+# Subtest: getPresetRange returns the preceding Monday-through-Sunday range for last week
+ok 25 - getPresetRange returns the preceding Monday-through-Sunday range for last week
+  ---
+  duration_ms: 0.1991
+  type: 'test'
+  ...
+# Subtest: filterDocuments applies an inclusive custom start and end date range
+ok 26 - filterDocuments applies an inclusive custom start and end date range
+  ---
+  duration_ms: 0.3457
+  type: 'test'
+  ...
+# Subtest: filterDocuments combines receipt and kingdee status with the existing form status
+ok 27 - filterDocuments combines receipt and kingdee status with the existing form status
+  ---
+  duration_ms: 0.34
+  type: 'test'
+  ...
+# Subtest: filterDocuments filters by approval completion time and payee type
+ok 28 - filterDocuments filters by approval completion time and payee type
+  ---
+  duration_ms: 0.2055
+  type: 'test'
+  ...
+# Subtest: filterDocuments applies presets to approval completion time
+ok 29 - filterDocuments applies presets to approval completion time
+  ---
+  duration_ms: 0.1302
+  type: 'test'
+  ...
+# Subtest: receipt list page provides the required application structure
+ok 30 - receipt list page provides the required application structure
+  ---
+  duration_ms: 3.7688
+  type: 'test'
+  ...
+# Subtest: search label describes the input without wrapping its search button
+ok 31 - search label describes the input without wrapping its search button
+  ---
+  duration_ms: 1.7992
+  type: 'test'
+  ...
+# Subtest: approval page uses 审批确认 as its active menu name
+ok 32 - approval page uses 审批确认 as its active menu name
+  ---
+  duration_ms: 0.5508
+  type: 'test'
+  ...
+# Subtest: approval page keeps the result count but removes the refresh shortcut
+ok 33 - approval page keeps the result count but removes the refresh shortcut
+  ---
+  duration_ms: 1.4166
+  type: 'test'
+  ...
+# Subtest: list approval, title, and detail actions navigate to the standalone approval detail page
+ok 34 - list approval, title, and detail actions navigate to the standalone approval detail page
+  ---
+  duration_ms: 1.2049
+  type: 'test'
+  ...
+# Subtest: approval detail tab has a fixed name and a working close action
+ok 35 - approval detail tab has a fixed name and a working close action
+  ---
+  duration_ms: 0.6532
+  type: 'test'
+  ...
+# Subtest: standalone approval detail page uses the compact red action toolbar style
+ok 36 - standalone approval detail page uses the compact red action toolbar style
+  ---
+  duration_ms: 1.0869
+  type: 'test'
+  ...
+# Subtest: file preview opens a dedicated page with a receipt category
+ok 37 - file preview opens a dedicated page with a receipt category
+  ---
+  duration_ms: 0.9816
+  type: 'test'
+  ...
+# Subtest: receipt category in file preview is marked as a new function
+ok 38 - receipt category in file preview is marked as a new function
+  ---
+  duration_ms: 0.7241
+  type: 'test'
+  ...
+# Subtest: file preview category marker keeps the receipt label left aligned
+ok 39 - file preview category marker keeps the receipt label left aligned
+  ---
+  duration_ms: 0.7583
+  type: 'test'
+  ...
+# Subtest: approval detail file preview is marked as an updated function
+ok 40 - approval detail file preview is marked as an updated function
+  ---
+  duration_ms: 0.8134
+  type: 'test'
+  ...
+# Subtest: file preview tab close returns to the approval list
+ok 41 - file preview tab close returns to the approval list
+  ---
+  duration_ms: 0.8515
+  type: 'test'
+  ...
+# Subtest: manual receipt uploads persist locally for the new preview page
+ok 42 - manual receipt uploads persist locally for the new preview page
+  ---
+  duration_ms: 0.4463
+  type: 'test'
+  ...
+# Subtest: cached manual payments remove CBS submission and payment-result log nodes
+ok 43 - cached manual payments remove CBS submission and payment-result log nodes
+  ---
+  duration_ms: 0.4047
+  type: 'test'
+  ...
+# Subtest: receipt app contains dialog, custom date range, and menu dismissal hooks
+ok 44 - receipt app contains dialog, custom date range, and menu dismissal hooks
+  ---
+  duration_ms: 0.615
+  type: 'test'
+  ...
+# Subtest: approval page exposes CBS receipt and Kingdee status tracking
+ok 45 - approval page exposes CBS receipt and Kingdee status tracking
+  ---
+  duration_ms: 1.0999
+  type: 'test'
+  ...
+# Subtest: overseas payments hide receipt workflow and require no receipt upload on payment
+ok 46 - overseas payments hide receipt workflow and require no receipt upload on payment
+  ---
+  duration_ms: 0.5364
+  type: 'test'
+  ...
+# Subtest: overseas payment confirmation does not provide a remark field
+ok 47 - overseas payment confirmation does not provide a remark field
+  ---
+  duration_ms: 0.4898
+  type: 'test'
+  ...
+# Subtest: cached paid overseas documents are migrated into the Kingdee-only path
+ok 48 - cached paid overseas documents are migrated into the Kingdee-only path
+  ---
+  duration_ms: 0.807
+  type: 'test'
+  ...
+# Subtest: cached receipt-failure fixture stays domestic so its receipt status remains visible
+ok 49 - cached receipt-failure fixture stays domestic so its receipt status remains visible
+  ---
+  duration_ms: 0.8796
+  type: 'test'
+  ...
+# Subtest: partial receipt pulls are normalized as failures with their receipt files cleared
+ok 50 - partial receipt pulls are normalized as failures with their receipt files cleared
+  ---
+  duration_ms: 0.8061
+  type: 'test'
+  ...
+# Subtest: Kingdee status filter includes partial failure
+ok 51 - Kingdee status filter includes partial failure
+  ---
+  duration_ms: 0.6317
+  type: 'test'
+  ...
+# Subtest: cached sample document is migrated to the partial Kingdee failure state
+ok 52 - cached sample document is migrated to the partial Kingdee failure state
+  ---
+  duration_ms: 0.7152
+  type: 'test'
+  ...
+# Subtest: approval page provides approval-time and payee-type columns with filters
+ok 53 - approval page provides approval-time and payee-type columns with filters
+  ---
+  duration_ms: 0.6688
+  type: 'test'
+  ...
+# Subtest: desktop layout reserves readable navigation and table column widths
+ok 54 - desktop layout reserves readable navigation and table column widths
+  ---
+  duration_ms: 0.4675
+  type: 'test'
+  ...
+# Subtest: approval page provides the operation dialog contract
+ok 55 - approval page provides the operation dialog contract
+  ---
+  duration_ms: 0.9048
+  type: 'test'
+  ...
+# Subtest: approval page renders common and state-driven operation controls
+ok 56 - approval page renders common and state-driven operation controls
+  ---
+  duration_ms: 0.4572
+  type: 'test'
+  ...
+# Subtest: operation logs render as an auditable four-column table
+ok 57 - operation logs render as an auditable four-column table
+  ---
+  duration_ms: 0.3665
+  type: 'test'
+  ...
+# Subtest: operation log people display as name and employee number while system stays system
+ok 58 - operation log people display as name and employee number while system stays system
+  ---
+  duration_ms: 0.5767
+  type: 'test'
+  ...
+# Subtest: receipt upload accepts up to nine required files without format restriction
+ok 59 - receipt upload accepts up to nine required files without format restriction
+  ---
+  duration_ms: 0.4827
+  type: 'test'
+  ...
+# Subtest: payment confirmation prompts for completed payment and receipt upload
+ok 60 - payment confirmation prompts for completed payment and receipt upload
+  ---
+  duration_ms: 0.3488
+  type: 'test'
+  ...
+# Subtest: Kingdee sync confirmation provides no remark field
+ok 61 - Kingdee sync confirmation provides no remark field
+  ---
+  duration_ms: 0.6193
+  type: 'test'
+  ...
+# Subtest: partial Kingdee failures prompt users to delete synced documents before retrying
+ok 62 - partial Kingdee failures prompt users to delete synced documents before retrying
+  ---
+  duration_ms: 0.4826
+  type: 'test'
+  ...
+# Subtest: partial Kingdee failure provides a visible example of this-release markers
+ok 63 - partial Kingdee failure provides a visible example of this-release markers
+  ---
+  duration_ms: 0.9767
+  type: 'test'
+  ...
+# Subtest: details and logs show this-release markers only on the first rendered row
+ok 64 - details and logs show this-release markers only on the first rendered row
+  ---
+  duration_ms: 0.4614
+  type: 'test'
+  ...
+# Subtest: change markers float above their target without consuming layout space
+ok 65 - change markers float above their target without consuming layout space
+  ---
+  duration_ms: 0.445
+  type: 'test'
+  ...
+# Subtest: change marker guide lives in the upper-right toolbar and supports hiding markers
+ok 66 - change marker guide lives in the upper-right toolbar and supports hiding markers
+  ---
+  duration_ms: 1.7703
+  type: 'test'
+  ...
+# Subtest: upper-right reset button clears locally persisted workflow data and reloads the initial fixtures
+ok 67 - upper-right reset button clears locally persisted workflow data and reloads the initial fixtures
+  ---
+  duration_ms: 1.1027
+  type: 'test'
+  ...
+# Subtest: manual operation refreshes only the matching open detail dialog
+ok 68 - manual operation refreshes only the matching open detail dialog
+  ---
+  duration_ms: 0.4877
+  type: 'test'
+  ...
+# Subtest: manual operation keeps the original detail trigger as the refreshed dialog return target
+ok 69 - manual operation keeps the original detail trigger as the refreshed dialog return target
+  ---
+  duration_ms: 0.4618
+  type: 'test'
+  ...
+# Subtest: manual operation UI hides empty processing text and preserves timeline notes
+ok 70 - manual operation UI hides empty processing text and preserves timeline notes
+  ---
+  duration_ms: 0.8815
+  type: 'test'
+  ...
+# Subtest: operation buttons use a neutral default and red hover or pressed states
+ok 71 - operation buttons use a neutral default and red hover or pressed states
+  ---
+  duration_ms: 0.4762
+  type: 'test'
+  ...
+# Subtest: 版本与当前页筛选相互独立，规则说明可作为无锚点条目
+ok 72 - 版本与当前页筛选相互独立，规则说明可作为无锚点条目
+  ---
+  duration_ms: 1.5045
+  type: 'test'
+  ...
+# Subtest: 拒绝重复编号、未知版本与未知类型，避免标记错配
+ok 73 - 拒绝重复编号、未知版本与未知类型，避免标记错配
+  ---
+  duration_ms: 0.3949
+  type: 'test'
+  ...
+# Subtest: 资料链接仅接受本地相对路径和 HTTP(S)，拒绝可执行地址
+ok 74 - 资料链接仅接受本地相对路径和 HTTP(S)，拒绝可执行地址
+  ---
+  duration_ms: 0.5435
+  type: 'test'
+  ...
+# Subtest: 同名业务页在模块之间隔离，重复快照不重复打开
+ok 75 - 同名业务页在模块之间隔离，重复快照不重复打开
+  ---
+  duration_ms: 2.2215
+  type: 'test'
+  ...
+# Subtest: 后台模块更新不抢走当前页签，显式导航才切换
+ok 76 - 后台模块更新不抢走当前页签，显式导航才切换
+  ---
+  duration_ms: 0.3283
+  type: 'test'
+  ...
+# Subtest: 关闭等待业务确认，拒绝关闭的快照保留脏标记
+ok 77 - 关闭等待业务确认，拒绝关闭的快照保留脏标记
+  ---
+  duration_ms: 0.3141
+  type: 'test'
+  ...
+# Subtest: 关闭模块最后页签切换至另一模块，全部关闭进入空态
+ok 78 - 关闭模块最后页签切换至另一模块，全部关闭进入空态
+  ---
+  duration_ms: 0.2718
+  type: 'test'
+  ...
+# Subtest: 只接收已登记窗口的合法协议快照
+ok 79 - 只接收已登记窗口的合法协议快照
+  ---
+  duration_ms: 0.4402
+  type: 'test'
+  ...
+# Subtest: one reply file contains exactly two visible sheets covering all five types
+ok 80 - one reply file contains exactly two visible sheets covering all five types
+  ---
+  duration_ms: 141.648
+  type: 'test'
+  ...
+# Subtest: mixed workbook applies every type in one atomic action and preserves blanks
+ok 81 - mixed workbook applies every type in one atomic action and preserves blanks
+  ---
+  duration_ms: 248.1923
+  type: 'test'
+  ...
+# Subtest: salary uses zero as a real overwrite and blanks as skip
+ok 82 - salary uses zero as a real overwrite and blanks as skip
+  ---
+  duration_ms: 271.3646
+  type: 'test'
+  ...
+# Subtest: bonus uses zero as a real overwrite and blanks as skip
+ok 83 - bonus uses zero as a real overwrite and blanks as skip
+  ---
+  duration_ms: 240.5973
+  type: 'test'
+  ...
+# Subtest: commission uses zero as a real overwrite and blanks as skip
+ok 84 - commission uses zero as a real overwrite and blanks as skip
+  ---
+  duration_ms: 233.0159
+  type: 'test'
+  ...
+# Subtest: exception uses zero as a real overwrite and blanks as skip
+ok 85 - exception uses zero as a real overwrite and blanks as skip
+  ---
+  duration_ms: 295.3032
+  type: 'test'
+  ...
+# Subtest: fixed uses zero as a real overwrite and blanks as skip
+ok 86 - fixed uses zero as a real overwrite and blanks as skip
+  ---
+  duration_ms: 301.2136
+  type: 'test'
+  ...
+# Subtest: formula including cached numeric result is rejected
+ok 87 - formula including cached numeric result is rejected
+  ---
+  duration_ms: 264.3399
+  type: 'test'
+  ...
+# Subtest: invalid amount =100+200 rejected
+ok 88 - invalid amount =100+200 rejected
+  ---
+  duration_ms: 215.2038
+  type: 'test'
+  ...
+# Subtest: invalid amount abc rejected
+ok 89 - invalid amount abc rejected
+  ---
+  duration_ms: 293.8695
+  type: 'test'
+  ...
+# Subtest: invalid amount -1 rejected
+ok 90 - invalid amount -1 rejected
+  ---
+  duration_ms: 282.0557
+  type: 'test'
+  ...
+# Subtest: invalid amount true rejected
+ok 91 - invalid amount true rejected
+  ---
+  duration_ms: 293.6681
+  type: 'test'
+  ...
+# Subtest: identity edits in either sheet rejected
+ok 92 - identity edits in either sheet rejected
+  ---
+  duration_ms: 623.4195
+  type: 'test'
+  ...
+# Subtest: headers removed sheets extra sheets and added rows rejected
+ok 93 - headers removed sheets extra sheets and added rows rejected
+  ---
+  duration_ms: 1218.3973
+  type: 'test'
+  ...
+# Subtest: reordered complete rows keep identity rather than spreadsheet position
+ok 94 - reordered complete rows keep identity rather than spreadsheet position
+  ---
+  duration_ms: 326.9256
+  type: 'test'
+  ...
+# Subtest: unknown old template and stale data rejected
+ok 95 - unknown old template and stale data rejected
+  ---
+  duration_ms: 485.5106
+  type: 'test'
+  ...
+# Subtest: changed input basis with same revision rejected
+ok 96 - changed input basis with same revision rejected
+  ---
+  duration_ms: 358.8408
+  type: 'test'
+  ...
+# Subtest: all-blank workbook refused without batch
+ok 97 - all-blank workbook refused without batch
+  ---
+  duration_ms: 310.3122
+  type: 'test'
+  ...
+# Subtest: invalid later group cannot partially write an earlier group
+ok 98 - invalid later group cannot partially write an earlier group
+  ---
+  duration_ms: 252.7622
+  type: 'test'
+  ...
+# Subtest: tampered composite preview and revision conflict refused
+ok 99 - tampered composite preview and revision conflict refused
+  ---
+  duration_ms: 312.1269
+  type: 'test'
+  ...
+# Subtest: month lock including later closed month prevents template creation
+ok 100 - month lock including later closed month prevents template creation
+  ---
+  duration_ms: 159.3266
+  type: 'test'
+  ...
+# Subtest: exports complete model API
+ok 101 - exports complete model API
+  ---
+  duration_ms: 2.179
+  type: 'test'
+  ...
+# Subtest: money rounds to cents
+ok 102 - money rounds to cents
+  ---
+  duration_ms: 0.1529
+  type: 'test'
+  ...
+# Subtest: seed has stable IDs and November missing salary
+ok 103 - seed has stable IDs and November missing salary
+  ---
+  duration_ms: 2.7021
+  type: 'test'
+  ...
+# Subtest: personal break-even follows confirmed formula
+ok 104 - personal break-even follows confirmed formula
+  ---
+  duration_ms: 0.2308
+  type: 'test'
+  ...
+# Subtest: personal bonus does not enter project cost
+ok 105 - personal bonus does not enter project cost
+  ---
+  duration_ms: 0.8956
+  type: 'test'
+  ...
+# Subtest: idle salary is not forcibly allocated
+ok 106 - idle salary is not forcibly allocated
+  ---
+  duration_ms: 0.2224
+  type: 'test'
+  ...
+# Subtest: drafts excluded from actual hours
+ok 107 - drafts excluded from actual hours
+  ---
+  duration_ms: 0.2135
+  type: 'test'
+  ...
+# Subtest: zero income metric is null with reason
+ok 108 - zero income metric is null with reason
+  ---
+  duration_ms: 0.1505
+  type: 'test'
+  ...
+# Subtest: project tax allows negative monthly adjustment
+ok 109 - project tax allows negative monthly adjustment
+  ---
+  duration_ms: 0.3608
+  type: 'test'
+  ...
+# Subtest: rejects fractional hour precision
+ok 110 - rejects fractional hour precision
+  ---
+  duration_ms: 0.7946
+  type: 'test'
+  ...
+# Subtest: rejects nonworking day
+ok 111 - rejects nonworking day
+  ---
+  duration_ms: 0.1875
+  type: 'test'
+  ...
+# Subtest: calendar swap Saturday accepted
+ok 112 - calendar swap Saturday accepted
+  ---
+  duration_ms: 0.5721
+  type: 'test'
+  ...
+# Subtest: rejects invalid calendar date
+ok 113 - rejects invalid calendar date
+  ---
+  duration_ms: 0.13
+  type: 'test'
+  ...
+# Subtest: rejects daily aggregate across projects
+ok 114 - rejects daily aggregate across projects
+  ---
+  duration_ms: 0.1344
+  type: 'test'
+  ...
+# Subtest: rejects monthly over standard hours
+ok 115 - rejects monthly over standard hours
+  ---
+  duration_ms: 0.1107
+  type: 'test'
+  ...
+# Subtest: rejects explicit overlapping periods
+ok 116 - rejects explicit overlapping periods
+  ---
+  duration_ms: 0.1998
+  type: 'test'
+  ...
+# Subtest: replacement excludes original hours
+ok 117 - replacement excludes original hours
+  ---
+  duration_ms: 0.3817
+  type: 'test'
+  ...
+# Subtest: rejects unknown role
+ok 118 - rejects unknown role
+  ---
+  duration_ms: 0.0952
+  type: 'test'
+  ...
+# Subtest: cannot change existing row owner
+ok 119 - cannot change existing row owner
+  ---
+  duration_ms: 0.2102
+  type: 'test'
+  ...
+# Subtest: writes are pure and audit revisions
+ok 120 - writes are pure and audit revisions
+  ---
+  duration_ms: 0.1538
+  type: 'test'
+  ...
+# Subtest: draft supports incomplete row and delete
+ok 121 - draft supports incomplete row and delete
+  ---
+  duration_ms: 0.1977
+  type: 'test'
+  ...
+# Subtest: stale revision rejected
+ok 122 - stale revision rejected
+  ---
+  duration_ms: 0.2423
+  type: 'test'
+  ...
+# Subtest: ratios sum cannot exceed one
+ok 123 - ratios sum cannot exceed one
+  ---
+  duration_ms: 0.2388
+  type: 'test'
+  ...
+# Subtest: settings preserve unrelated project expense
+ok 124 - settings preserve unrelated project expense
+  ---
+  duration_ms: 0.2208
+  type: 'test'
+  ...
+# Subtest: blank import skips and zero overwrites
+ok 125 - blank import skips and zero overwrites
+  ---
+  duration_ms: 0.579
+  type: 'test'
+  ...
+# Subtest: formula and duplicate import keys rejected atomically
+ok 126 - formula and duplicate import keys rejected atomically
+  ---
+  duration_ms: 0.1708
+  type: 'test'
+  ...
+# Subtest: import retried batch is idempotent
+ok 127 - import retried batch is idempotent
+  ---
+  duration_ms: 0.2338
+  type: 'test'
+  ...
+# Subtest: tampered preview is rejected
+ok 128 - tampered preview is rejected
+  ---
+  duration_ms: 0.1501
+  type: 'test'
+  ...
+# Subtest: stale import preview rejected
+ok 129 - stale import preview rejected
+  ---
+  duration_ms: 0.168
+  type: 'test'
+  ...
+# Subtest: salary import person key does not require project
+ok 130 - salary import person key does not require project
+  ---
+  duration_ms: 0.0875
+  type: 'test'
+  ...
+# Subtest: amount correction requires reason and retains audit
+ok 131 - amount correction requires reason and retains audit
+  ---
+  duration_ms: 0.2269
+  type: 'test'
+  ...
+# Subtest: close blocks missing salary
+ok 132 - close blocks missing salary
+  ---
+  duration_ms: 0.4662
+  type: 'test'
+  ...
+# Subtest: close snapshot remains stable and blocks mutations
+ok 133 - close snapshot remains stable and blocks mutations
+  ---
+  duration_ms: 0.6111
+  type: 'test'
+  ...
+# Subtest: reopen reason and reverse chronological dependency
+ok 134 - reopen reason and reverse chronological dependency
+  ---
+  duration_ms: 0.8691
+  type: 'test'
+  ...
+# Subtest: audit data is detached from caller input
+ok 135 - audit data is detached from caller input
+  ---
+  duration_ms: 0.1428
+  type: 'test'
+  ...
+# Subtest: ratio integrity does not round away excess percentages
+ok 136 - ratio integrity does not round away excess percentages
+  ---
+  duration_ms: 0.1288
+  type: 'test'
+  ...
+# Subtest: import batch retains application timestamp
+ok 137 - import batch retains application timestamp
+  ---
+  duration_ms: 0.1523
+  type: 'test'
+  ...
+# Subtest: seed missing salary can be filled then November closed
+ok 138 - seed missing salary can be filled then November closed
+  ---
+  duration_ms: 2.4408
+  type: 'test'
+  ...
+# Subtest: missing calendar and effective ratio explain incomplete result
+ok 139 - missing calendar and effective ratio explain incomplete result
+  ---
+  duration_ms: 0.1748
+  type: 'test'
+  ...
+# Subtest: negative import is rejected
+ok 140 - negative import is rejected
+  ---
+  duration_ms: 0.1065
+  type: 'test'
+  ...
+# Subtest: historical monthly hours count toward monthly capacity only
+ok 141 - historical monthly hours count toward monthly capacity only
+  ---
+  duration_ms: 0.2176
+  type: 'test'
+  ...
+# Subtest: adjacent explicit intervals do not overlap
+ok 142 - adjacent explicit intervals do not overlap
+  ---
+  duration_ms: 0.1566
+  type: 'test'
+  ...
+# Subtest: locked month rejects drafts settings and imports
+ok 143 - locked month rejects drafts settings and imports
+  ---
+  duration_ms: 0.3985
+  type: 'test'
+  ...
+# Subtest: result and input snapshot copies do not alias live inputs
+ok 144 - result and input snapshot copies do not alias live inputs
+  ---
+  duration_ms: 0.2755
+  type: 'test'
+  ...
+# Subtest: project break-even is null when variable costs exceed income
+ok 145 - project break-even is null when variable costs exceed income
+  ---
+  duration_ms: 0.118
+  type: 'test'
+  ...
+# Subtest: project sources preserve source record identity
+ok 146 - project sources preserve source record identity
+  ---
+  duration_ms: 0.1138
+  type: 'test'
+  ...
+# Subtest: receivable is independently supplied rather than derived from contract
+ok 147 - receivable is independently supplied rather than derived from contract
+  ---
+  duration_ms: 0.0837
+  type: 'test'
+  ...
+# Subtest: missing salary does not report a complete personal break-even
+ok 148 - missing salary does not report a complete personal break-even
+  ---
+  duration_ms: 0.0687
+  type: 'test'
+  ...
+# Subtest: missing salary does not report a complete project break-even
+ok 149 - missing salary does not report a complete project break-even
+  ---
+  duration_ms: 0.0994
+  type: 'test'
+  ...
+# Subtest: later closed month protects historical amount until reopened
+ok 150 - later closed month protects historical amount until reopened
+  ---
+  duration_ms: 3.5215
+  type: 'test'
+  ...
+# Subtest: later closed month protects historical schedule settings and imports
+ok 151 - later closed month protects historical schedule settings and imports
+  ---
+  duration_ms: 0.4969
+  type: 'test'
+  ...
+# Subtest: later closed month protects deletion of historical draft
+ok 152 - later closed month protects deletion of historical draft
+  ---
+  duration_ms: 0.3309
+  type: 'test'
+  ...
+# Subtest: historical month cannot be closed while later month is closed
+ok 153 - historical month cannot be closed while later month is closed
+  ---
+  duration_ms: 0.2394
+  type: 'test'
+  ...
+# Subtest: earlier periods added after close remain protected
+ok 154 - earlier periods added after close remain protected
+  ---
+  duration_ms: 0.2749
+  type: 'test'
+  ...
+# Subtest: cross-month replacements check original historical period
+ok 155 - cross-month replacements check original historical period
+  ---
+  duration_ms: 0.2961
+  type: 'test'
+  ...
+# Subtest: cross-month replacements check destination historical period
+ok 156 - cross-month replacements check destination historical period
+  ---
+  duration_ms: 0.285
+  type: 'test'
+  ...
+# Subtest: monthMissing includes historical input gaps with month and entity
+ok 157 - monthMissing includes historical input gaps with month and entity
+  ---
+  duration_ms: 1.2802
+  type: 'test'
+  ...
+# Subtest: closeMonth refuses incomplete historical cumulative basis
+ok 158 - closeMonth refuses incomplete historical cumulative basis
+  ---
+  duration_ms: 0.92
+  type: 'test'
+  ...
+# Subtest: historical personal wages required even with no project hours
+ok 159 - historical personal wages required even with no project hours
+  ---
+  duration_ms: 0.8456
+  type: 'test'
+  ...
+# Subtest: close snapshot records financial and time rule version
+ok 160 - close snapshot records financial and time rule version
+  ---
+  duration_ms: 1.5563
+  type: 'test'
+  ...
+# Subtest: monthMissing excludes only nonblocking metric explanations
+ok 161 - monthMissing excludes only nonblocking metric explanations
+  ---
+  duration_ms: 0.2059
+  type: 'test'
+  ...
+# Subtest: monthMissing requires historical attendance and ratios
+ok 162 - monthMissing requires historical attendance and ratios
+  ---
+  duration_ms: 0.881
+  type: 'test'
+  ...
+# Subtest: monthMissing does not require wages before joining
+ok 163 - monthMissing does not require wages before joining
+  ---
+  duration_ms: 0.3174
+  type: 'test'
+  ...
+# Subtest: seed preparing project has no receipts before establishment
+ok 164 - seed preparing project has no receipts before establishment
+  ---
+  duration_ms: 0.2103
+  type: 'test'
+  ...
+# Subtest: project history starts in February while personal income retains older projects
+ok 165 - project history starts in February while personal income retains older projects
+  ---
+  duration_ms: 27.6541
+  type: 'test'
+  ...
+# Subtest: manager calendar exposes no write action
+ok 166 - manager calendar exposes no write action
+  ---
+  duration_ms: 1.1862
+  type: 'test'
+  ...
+# Subtest: personal cumulative contributions link the source month
+ok 167 - personal cumulative contributions link the source month
+  ---
+  duration_ms: 3.9905
+  type: 'test'
+  ...
+# Subtest: finance personal salary is not filtered away by project selection
+ok 168 - finance personal salary is not filtered away by project selection
+  ---
+  duration_ms: 4.5001
+  type: 'test'
+  ...
+1..168
+# tests 168
+# suites 0
+# pass 168
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7437.6136

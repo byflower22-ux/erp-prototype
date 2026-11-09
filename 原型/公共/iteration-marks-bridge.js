@@ -29,9 +29,9 @@
     }
     function cancelPick(){if(!picking)return;send(picking.module,{type:'cancel-pick',request:picking.request});const editor=picking.editor;picking=null;editor.finishPick(false);editor.message('已取消选择，原标记内容保留。');}
     element.configure(window.ERPVersionMarks,{
-      root:document.querySelector('nav'),scopes:true,modules:[{id:'budget',label:'预算管理'}],
+      root:document.querySelector('nav'),scopes:true,modules:[{id:'budget',label:'预算管理'},{id:'project',label:'项目管理与核算'}],
       configGlobal:'ERPVersionMarks',documentBase:new URL('./',location.href).href,
-      getPage:()=>pages.get(activeModule())||getActive()?.nav||'overview',getModule:()=> 'budget',
+      getPage:()=>pages.get(activeModule())||getActive()?.nav||'overview',getModule:()=>activeModule()||'budget',
       getExternalCount:()=>renderers.get(activeModule())?.count||0,
       includeOnPage:(mark,page)=>mark.scope==='menu'||mark.module===activeModule()&&mark.page===page,
       renderMark:mark=>mark.scope==='menu',onRefresh:()=>sync(),
@@ -48,7 +48,7 @@
         const request=Date.now().toString(36)+Math.random().toString(36).slice(2);picking={module,request,editor};element.refresh();send(module,{type:'pick',request});frames[module].focus();return true;
       }
     });
-    const pendingLocate=new Map();migrate(element);element.refresh();
+    const pendingLocate=new Map();migrate(element);window.ERPProjectAnalysisMarks?.upgrade(element);element.refresh();
     window.addEventListener('message',event=>{
       const module=Object.keys(frames).find(key=>frames[key].contentWindow===event.source),data=event.data;
       if(!module||data?.protocol!==protocol)return;

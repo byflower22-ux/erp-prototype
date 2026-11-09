@@ -1,0 +1,38 @@
+[
+  {
+    "path": "原型/项目管理/项目管理优化/app.js",
+    "sha256": "0db7b7b33dc48d7541cc42acc3d47bbdc27657c1750c961794f7b26d1ac823ad"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/excel-io.js",
+    "sha256": "3220bf2aa611865478d28b7944dd9e3117dac771e3995a074a28d5d1ed57bf27"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/index.html",
+    "sha256": "4937a7012e3788e72a8aef543b8864f26211d66fbbbb30c60ae3e74952862059"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/styles.css",
+    "sha256": "c381ccbcaf3d56c0c1ecefc583f360eabbf82aed90601b6948d5859d196de2fa"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/finance.js",
+    "sha256": "03cebe2c32c9601175faf4ad2d3a45ffc4c60f08b6d7e6bb5438693f57ee8a4e"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/vendor/exceljs-4.4.0.min.js",
+    "sha256": "7e49da68588e250dbb8bba190d2caa8ab3787cc0284bda1d8b2f805c4df742c9"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/tests/excel.test.cjs",
+    "sha256": "b34587f15b8f5869d223a3d2faab27fabb17a4221df2fa7f06b7c89f1214812d"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/tests/excel-browser.cjs",
+    "sha256": "ae3b7758370f832fca097e7e09aa148d2aebee64df446615e6cb22e204c4a60d"
+  },
+  {
+    "path": "原型/项目管理/项目管理优化/tests/browser.cjs",
+    "sha256": "8f206a7a8df894e0cf946b42e2e9984203b289ec11a6f5e2b40ff92b79ba9650"
+  }
+]
