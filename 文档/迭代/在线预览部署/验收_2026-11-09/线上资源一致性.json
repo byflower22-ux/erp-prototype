@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-09T10:49:24.278Z",
+  "commit": "f8230651428011e1a366d9f79a71403717105d5f",
+  "entry": "https://byflower22-ux.github.io/erp-prototype/",
+  "checks": [
+    {
+      "file": "index.html",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/公共/shell.css",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/公共/shell.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/公共/iteration-marks-bridge.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/公共/project-marks-config.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/预算管理/预算优化/prototype/index.html",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/付款报销/回单对接/index.html",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/analysis-ai.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/analysis.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/app.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/consultants.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/delivery.css",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/delivery.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/excel-io.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/finance.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/index.html",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/management.css",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/management.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/model.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/schedule-mobile.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/schedule.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/styles.css",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/ui.js",
+      "status": 200,
+      "gitContentMatches": true
+    },
+    {
+      "file": "原型/项目管理/项目管理优化/vendor/exceljs-4.4.0.min.js",
+      "status": 200,
+      "gitContentMatches": true
+    }
+  ]
+}
