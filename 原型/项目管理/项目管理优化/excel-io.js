@@ -17,13 +17,15 @@
       });
       return loading;
     }
-    root.ProjectExcel=factory(loadExcel,root.ProjectModel);
+    root.ProjectExcel=factory(loadExcel,root.ProjectModel,person=>root.ProjectConsultants?.profile(person)||person,(state,project)=>root.ProjectDelivery?.info(state,project).team||project.team||'博商管理咨询');
   }
-})(typeof globalThis!=='undefined'?globalThis:this,function(loadExcel,M){
+})(typeof globalThis!=='undefined'?globalThis:this,function(loadExcel,M,profile,teamOf){
   'use strict';
+  profile=profile||(person=>person);
+  teamOf=teamOf||((state,project)=>project.team||'博商管理咨询');
   const schema='ERP-I005-XLSX-v2',order=['salary','bonus','commission','exception','fixed'];
   const names={commission:'项目人员提成',exception:'项目异常费用',fixed:'项目固定成本分摊'};
-  const headers=[['序号','人员编号','人员姓名','所属月份','原固定人工（元）','固定人工录入（元）','原奖金（元）','奖金录入（元）'],['序号','项目编号','项目名称','费用类型','人员编号','人员姓名','项目角色','所属月份','原金额（元）','录入金额（元）']];
+  const headers=[['序号','人员编号','人员姓名','项目角色','部门','所属月份','原固定人工（元）','固定人工录入（元）','原奖金（元）','奖金录入（元）'],['序号','项目编号','项目名称','项目所属团队','费用类型','人员编号','人员姓名','项目角色','所属月份','原金额（元）','录入金额（元）']];
   const fail=message=>{throw Error(message);};
   const stateStamp=state=>{let h=2166136261;const text=JSON.stringify(state);for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16);};
   function available(state,month){
@@ -32,22 +34,38 @@
     if(Object.keys(state.closed).some(m=>m>month))fail('存在后续已结月份，请先反结账后续月份');
   }
   function amount(state,type,month,r){const collection={salary:'salaries',bonus:'bonuses',commission:'commissions',exception:'expenses',fixed:'expenses'}[type];return state[collection].find(x=>x.month===month&&(!r.personId||r.personId===x.personId)&&(!r.projectId||r.projectId===x.projectId)&&(!['exception','fixed'].includes(type)||x.category===type))?.amount??null;}
-  async function createTemplate(state,month,id){
+  function personnelInfo(state){return state.people.map(person=>{const p=profile(person),projectRoles=[...new Set(state.members.filter(member=>member.personId===p.id).map(member=>member.role).filter(Boolean))];return {...p,department:p.department||'未维护部门',projectRoles:projectRoles.length?projectRoles:[p.role||'未分配角色']};});}
+  function personnelSelection(state,{roles=[],departments=[]}={}){return personnelInfo(state).filter(p=>(!roles.length||p.projectRoles.some(role=>roles.includes(role)))&&(!departments.length||departments.includes(p.department)));}
+  function projectImportRows(state,{teams=[],expenseTypes=[],roles=[]}={}){
+    const rows=[];
+    for(const type of ['commission','exception','fixed'])for(const member of type==='commission'?state.members:state.projects.map(p=>({projectId:p.id}))){
+      const project=state.projects.find(p=>p.id===member.projectId);if(!project)continue;
+      const team=teamOf(state,project);
+      if(teams.length&&!teams.includes(team)||expenseTypes.length&&!expenseTypes.includes(names[type])||type==='commission'&&roles.length&&!roles.includes(member.role))continue;
+      rows.push({...member,type,team});
+    }
+    return rows;
+  }
+  async function createTemplate(state,month,id,scope='all',selection={}){
+    if(!['all','person','project'].includes(scope))fail('不支持的模板类型');
     available(state,month);if(!id)fail('缺少模板批次标识');
     const ExcelJS=await loadExcel();
     const book=new ExcelJS.Workbook();book.creator='ERP项目管理优化Demo';
-    const personnel=state.people.map((p,i)=>({personId:p.id,cells:[i+1,p.id,p.name,month,amount(state,'salary',month,{personId:p.id}),null,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:6,type:'salary'},{column:8,type:'bonus'}]}));
+    const personnel=personnelSelection(state,scope==='person'?selection:{}).map((p,i)=>({personId:p.id,cells:[i+1,p.id,p.name,p.projectRoles.join(' / '),p.department,month,amount(state,'salary',month,{personId:p.id}),null,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:8,type:'salary'},{column:10,type:'bonus'}]}));
+    if(scope==='person'&&!personnel.length)fail('所选角色、部门下没有人员，请调整筛选条件');
     const projects=[];
-    for(const type of ['commission','exception','fixed'])for(const r of type==='commission'?state.members:state.projects.map(p=>({projectId:p.id}))){
+    for(const r of projectImportRows(state,scope==='project'?selection:{})){
+      const type=r.type;
       const person=state.people.find(p=>p.id===r.personId),project=state.projects.find(p=>p.id===r.projectId);
-      projects.push({personId:r.personId,projectId:r.projectId,cells:[projects.length+1,r.projectId,project.name,names[type],r.personId||'—',person?.name||'—',r.role||'—',month,amount(state,type,month,r),null],inputs:[{column:10,type}]});
+      projects.push({personId:r.personId,projectId:r.projectId,cells:[projects.length+1,r.projectId,project.name,r.team,names[type],r.personId||'—',person?.name||'—',r.role||'—',month,amount(state,type,month,r),null],inputs:[{column:11,type}]});
     }
-    const sheets=[{name:'人员固定成本',headers:headers[0],rows:personnel,widths:[8,14,18,16,22,24,20,22]},{name:'项目核算数据',headers:headers[1],rows:projects,widths:[8,14,40,25,14,18,18,16,22,22]}];
+    if(scope==='project'&&!projects.length)fail('所选团队、费用类型、角色下没有数据，请调整筛选条件');
+    const sheets=[{name:'人员固定成本',headers:headers[0],rows:personnel,widths:[8,14,18,34,42,16,22,24,20,22]},{name:'项目核算数据',headers:headers[1],rows:projects,widths:[8,14,40,28,25,14,18,18,16,22,22]}].filter((s,i)=>scope==='all'||i===(scope==='person'?0:1));
     for(const spec of sheets){
       const sheet=book.addWorksheet(spec.name,{views:[{state:'frozen',ySplit:5,showGridLines:false}],properties:{defaultRowHeight:24}});
       spec.widths.forEach((w,i)=>sheet.getColumn(i+1).width=w);
       sheet.getCell('A1').value=spec.name+' · 核算录入模板';sheet.getCell('A1').font={name:'微软雅黑',size:16,bold:true,color:{argb:'FF263247'}};sheet.getRow(1).height=32;
-      sheet.getCell('A2').value='期间：'+month+'　单位：元';
+      sheet.getCell('A2').value='期间：'+month+'　单位：元'+(spec.name==='人员固定成本'?'　角色：'+(scope==='person'&&selection.roles?.join('、')||'全部')+'　部门：'+(selection.departments?.join('、')||'全部')+'　人员：'+personnel.length+'人':'　团队：'+(selection.teams?.join('、')||'全部')+'　费用类型：'+(selection.expenseTypes?.join('、')||'全部')+'　角色：'+(selection.roles?.join('、')||'全部'));
       sheet.getCell('A3').value='只填黄色列：空白跳过，0覆盖为0。保留预填信息；不要增删行列或工作表。';
       sheet.getCell('A3').font={name:'微软雅黑',size:10,color:{argb:'FF647086'}};
       sheet.getRow(4).hidden=true;
@@ -58,23 +76,24 @@
         for(let col=1;col<=spec.headers.length;col++){const c=row.getCell(col),editable=r.inputs.some(x=>x.column===col);c.font={name:'微软雅黑',size:11,color:{argb:editable?'FF245A9A':'FF526079'}};c.alignment={vertical:'middle'};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:editable?'FFFFF1CA':i%2?'FFF3F5F8':'FFFFFFFF'}};
           if(editable){c.protection={locked:false};c.numFmt='#,##0.00';c.dataValidation={type:'decimal',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0],showErrorMessage:true,errorTitle:'金额格式不正确',error:'请输入非负数值，不可使用公式。'};}
           else if(typeof r.cells[col-1]==='number'&&col>1)c.numFmt='#,##0.00';
+          if(spec.name==='人员固定成本'&&[4,5].includes(col)){c.alignment={vertical:'middle',wrapText:true};row.height=40;}
         }
       });
       sheet.autoFilter={from:'A5',to:{row:spec.rows.length+5,column:spec.headers.length}};
       await sheet.protect('ERP-I005-template',{spinCount:1000,selectLockedCells:false,selectUnlockedCells:true,autoFilter:true});
     }
-    const manifest={schema,id,month,revision:state.revision,stamp:stateStamp(state),sheets};
-    return {buffer:await book.xlsx.writeBuffer(),manifest,filename:'核算数据_'+month+'_录入模板.xlsx'};
+    const manifest={schema,id,month,scope,selection,revision:state.revision,stamp:stateStamp(state),sheets};
+    return {buffer:await book.xlsx.writeBuffer(),manifest,filename:(scope==='person'?'人员核算数据':scope==='project'?'项目核算数据':'核算数据')+'_'+month+'_录入模板.xlsx'};
   }
   async function readTemplate(buffer,state,manifests){
     if(!buffer||buffer.byteLength>5*1024*1024)fail('Excel 文件须小于 5 MB');
     const ExcelJS=await loadExcel();
     const book=new ExcelJS.Workbook();try{await book.xlsx.load(buffer);}catch{fail('无法读取 Excel，请上传对话中收到的 .xlsx 模板');}
-    const first=book.getWorksheet('人员固定成本');
-    if(!first||first.getCell('A4').value!==schema)fail('不是当前两 Sheet 核算模板，请在对话中重新索取 Excel');
+    const first=book.worksheets[0];
+    if(!first||first.getCell('A4').value!==schema)fail('不是当前核算模板，请重新下载 Excel 模板');
     const id=first.getCell('B4').value,manifest=manifests.find(m=>m.id===id&&m.schema===schema);
-    if(!manifest)fail('未找到此模板生成记录，请在当前浏览器重新索取 Excel 模板');
-    if(book.worksheets.length!==2||manifest.sheets.some(s=>!book.getWorksheet(s.name)))fail('工作表结构已变化，请保留两个工作表');
+    if(!manifest)fail('未找到此模板生成记录，请在当前浏览器重新下载 Excel 模板');
+    if(book.worksheets.length!==manifest.sheets.length||manifest.sheets.some(s=>!book.getWorksheet(s.name))||first.name!==manifest.sheets[0].name)fail('工作表结构已变化，请保留模板工作表');
     const {month,revision}=manifest;available(state,month);
     if(first.getCell('C4').value!==month||first.getCell('D4').value!==revision)fail('模板月份或版本信息被修改，请重新索取');
     if(revision!==state.revision||manifest.stamp!==stateStamp(state))fail('模板输出后的数据版本已变化，请重新索取 Excel 模板');
@@ -97,7 +116,7 @@
       }
     }
     if(!filled)fail('Excel 没有填写金额，请在黄色列填写后再发送');
-    return {month,revision,templateId:id,groups};
+    return {month,revision,templateId:id,scope:manifest.scope||'all',selection:manifest.selection||{},groups};
   }
   const signature=p=>stateStamp({month:p.month,revision:p.revision,stamp:p.stamp,templateId:p.templateId,sourceFile:p.sourceFile,groups:p.groups,errors:p.errors});
   function previewWorkbook(state,result,sourceFile){
@@ -197,5 +216,5 @@
     sheet.pageSetup.printArea='A1:AD'+sheet.rowCount;sheet.pageSetup.printTitlesRow='1:3';
     return {filename:'咨询项目利润明细表_'+period+'.xlsx',buffer:await book.xlsx.writeBuffer()};
   }
-  return {createTemplate,readTemplate,previewWorkbook,applyWorkbook,stateStamp,createPersonnelReport,createProjectReport};
+  return {createTemplate,readTemplate,previewWorkbook,applyWorkbook,stateStamp,createPersonnelReport,createProjectReport,personnelInfo,personnelSelection,projectImportRows};
 });

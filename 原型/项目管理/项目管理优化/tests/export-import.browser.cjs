@@ -20,7 +20,7 @@ const out=process.env.ERP_QA_OUTPUT||path.join(root,'文档/迭代/在线预览�
   await f.locator('[data-filter="periodMode"][data-value="cumulative"]').click();const cumulative=await download(f.locator('[data-action="export-analysis"]'));assert.equal(cumulative.worksheets.length,3);pass('累计人员导出按3个月分Sheet');
   await f.getByRole('button',{name:'打开AI龙虾分析'}).click();assert.equal(await f.locator('[data-aa="clear"]').count(),0);
   await f.locator('[data-aa="import"]').click();await f.locator('[data-aa="download"]').waitFor();const template=await download(f.locator('[data-aa="download"]').last());
-  template.getWorksheet('人员固定成本').getCell('F8').value=11000;
+  template.getWorksheet('人员固定成本').getCell('H8').value=11000;
   await f.locator('input[aria-label="选择导入核算Excel"]').setInputFiles({name:'填写.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await template.xlsx.writeBuffer())});
   await f.locator('.aa-history').filter({hasText:'尚未写入'}).waitFor();
   const prior=await f.locator('body').evaluate(()=>JSON.parse(localStorage.getItem('erp-project-demo-v1'))?.revision??ProjectModel.seed().revision);

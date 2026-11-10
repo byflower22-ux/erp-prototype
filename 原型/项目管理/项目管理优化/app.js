@@ -30,8 +30,10 @@
   const pName=id=>state.projects.find(p=>p.id===id)?.name||id;
   const uName=id=>state.people.find(p=>p.id===id)?.name||id;
   const currentTab=()=>tabs.find(t=>t.key===active);
-  const snapshot=()=>({active,tabs:tabs.map(t=>({...t,dirty:t.key===active&&formDirty}))});
-  function publish(){ERPClient.publish();document.getElementById('local-tabs').innerHTML=tabs.map(t=>`<button type="button" data-action="activate" data-key="${esc(t.key)}" class="${t.key===active?'current':''}">${esc(t.label)}${t.key===active&&formDirty?' · 未保存':''}</button>`).join('');}
+  let deliveryCreateDraft=null;
+  const tabDirty=t=>(t.key===active&&formDirty)||(t.newProject&&deliveryCreateDraft?.dirty);
+  const snapshot=()=>({active,tabs:tabs.map(t=>({...t,dirty:!!tabDirty(t)}))});
+  function publish(){ERPClient.publish();document.getElementById('local-tabs').innerHTML=tabs.map(t=>`<button type="button" data-action="activate" data-key="${esc(t.key)}" class="${t.key===active?'current':''}">${esc(t.label)}${tabDirty(t)?' · 未保存':''}</button>`).join('');}
   function persist(next){
     try{
       const stored=localStorage.getItem(KEY);
@@ -68,8 +70,9 @@
   function activate(key){const tab=tabs.find(t=>t.key===key);if(!tab)return;if(dialog.open&&!closeDialog())return;active=key;render();publish();}
   function close(key){
     if(key===active&&dialog.open&&!closeDialog())return;
+    if(tabs.find(t=>t.key===key)?.newProject){if(deliveryCreateDraft?.dirty&&!confirm('新增项目尚未保存，确定放弃吗？'))return false;deliveryCreateDraft=null;}
     const index=tabs.findIndex(t=>t.key===key);tabs=tabs.filter(t=>t.key!==key);
-    if(active===key)active=tabs[Math.max(0,index-1)]?.key||null;render();publish();
+    if(active===key)active=tabs[Math.max(0,index-1)]?.key||null;render();publish();return true;
   }
   const ctx=()=>({state,month,personId,role,page:currentTab()?.nav||'schedule',filters,esc,money,percent,schedulePins:readSchedulePins()[personId]||[],mobile:mobile||matchMedia('(max-width:760px)').matches,weekEditor:currentTab()?.nav==='schedule'?weekInput():null});
   function heading(eyebrow,title,description,actions=''){return `<header class="page-heading"><div><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p>${esc(description)}</p></div><div class="heading-actions">${actions}</div></header>`;}
@@ -90,7 +93,7 @@
     ProjectAnalysisAI.sync({...ctx(),aiImport:{template:analysisTemplate,preview:analysisImportPreview,confirm:analysisImportConfirm,download:downloadExcel}});publish();if(marksConfigured)marks.refresh();
   }
   const deliveryFilters={status:'all',searchBy:'项目编号',query:'',start:'2026-05-10',end:'2026-11-09',range:'近半年',type:'',mark:'',team:'',owner:'',company:'',expanded:false};
-  function renderProjects(){return currentTab()?.projectId?ProjectDelivery.detail(ctx(),currentTab()):ProjectDelivery.list(ctx(),deliveryFilters);}
+  function renderProjects(){return currentTab()?.newProject?(role==='finance'?ProjectDeliveryCreate.render(ctx(),deliveryCreateDraft):U.empty('当前身份没有新增项目权限')):currentTab()?.projectId?ProjectDelivery.detail(ctx(),currentTab()):ProjectDelivery.list(ctx(),deliveryFilters);}
   function showProject(id,selectedMonth=month,section){
     if(employee())throw Error('当前身份不能查看项目详情');
     if(!state.projects.some(p=>p.id===id))throw Error('项目不存在');
@@ -113,8 +116,23 @@
   function collectDeliverySearch(){const form=content.querySelector('#delivery-search');if(form)Object.assign(deliveryFilters,Object.fromEntries(new FormData(form)));}
   function pickDelivery(section){openDialog(section,`<form>${fieldSelect('选择项目','projectId',state.projects,state.projects[0]?.id)}${formActions('打开'+section)}</form>`,()=>{const id=values().projectId;closeDialog(true);showProject(id,month,section);});}
   function addDeliveryProject(){
-    requireFinance();const revision=state.revision;
-    openDialog('新增项目',`<form><div class="form-grid">${inputField('项目名称','name','','text','required')}${inputField('公司名称','company','','text','required')}${fieldSelect('项目类型','type',['管理咨询','组织咨询','专项咨询'].map(x=>({id:x,name:x})),'管理咨询')}${fieldSelect('项目负责人','ownerId',state.people,personId)}${inputField('项目金额（元）','amount','','number','min="0" step="0.01" required')}${inputField('立项日期','startDate','2026-11-09','date','required')}</div>${formActions('保存项目')}</form>`,()=>{requireFinance();if(revision!==state.revision)throw Error('数据版本已变化');const v=values(),next=structuredClone(state),id='p-'+crypto.randomUUID(),code='XM20261109'+String(state.projects.length+1).padStart(4,'0');next.projects.push({id,code,name:v.name,company:v.company,type:v.type,ownerId:v.ownerId,contract:Number(v.amount),receivable:Number(v.amount),startDate:v.startDate,createdAt:'2026-11-09',status:'未开始'});next.members.push({projectId:id,personId:v.ownerId,role:'项目经理'});state.months.forEach(m=>next.ratios.push({id:'ratio-'+id+'-'+m,projectId:id,personId:v.ownerId,month:m,ratio:1}));next.revision++;next.audit.push({action:'新增项目',at:new Date().toISOString(),revision:next.revision,detail:{projectId:id}});persist(next);closeDialog(true);render();toast('项目已新增');});
+    requireFinance();if(dialog.open&&!closeDialog())return;
+    const key='project-create';if(!tabs.some(t=>t.key===key))tabs.push({key,label:'新增项目',nav:'projects',newProject:true});
+    if(!deliveryCreateDraft)deliveryCreateDraft=ProjectDeliveryCreate.create(state,month);
+    active=key;render();content.scrollIntoView({block:'start'});
+  }
+  function saveDeliveryProject(){
+    requireFinance();const form=content.querySelector('#delivery-create-form');if(!form||!form.reportValidity())return;
+    ProjectDeliveryCreate.capture(form,deliveryCreateDraft);
+    const result=ProjectDeliveryCreate.build(state,deliveryCreateDraft);persist(result.state);
+    deliveryCreateDraft.dirty=false;close('project-create');showProject(result.id,result.period,'项目成员');toast('项目已新增，成员收入比例已保存');
+  }
+  function refreshDeliveryCreate(){
+    const form=content.querySelector('#delivery-create-form');if(!form||!deliveryCreateDraft)return;
+    const total=ProjectDeliveryCreate.total(deliveryCreateDraft),el=form.querySelector('[data-create-ratio-total]');el.textContent=total+'%';el.classList.toggle('over',total>100);
+    form.querySelector('[data-create-period]').textContent=deliveryCreateDraft.fields.startDate.slice(0,7)||month;
+    form.querySelector('[data-create-note-count]').textContent=deliveryCreateDraft.fields.note.length+' / 500';
+    form.querySelector('[data-create-teams]').innerHTML=deliveryCreateDraft.expenseTeams.map(team=>`<span class="dc-team-tag">${esc(team)}</span>`).join('');
   }
   function addDeliveryMember(){
     requireFinance();const tab=currentTab(),id=tab.projectId,period=tab.period||month,revision=state.revision,choices=state.people.filter(p=>!state.members.some(m=>m.projectId===id&&m.personId===p.id));
@@ -298,14 +316,58 @@
     body.querySelector('#lobster-input').disabled=chatSession.busy;body.querySelector('#excel-file').disabled=chatSession.busy;
     chatDirty();
   }
-  async function analysisTemplate(period=month){
-    requireFinance();const basis=state,attachment=await ProjectExcel.createTemplate(basis,period,crypto.randomUUID());requireFinance();if(state!==basis)throw Error('数据版本已变化，请重新索取模板');
+  async function analysisTemplate(period=month,scope='all',selection={}){
+    requireFinance();const basis=state,attachment=await ProjectExcel.createTemplate(basis,period,crypto.randomUUID(),scope,selection);requireFinance();if(state!==basis)throw Error('数据版本已变化，请重新索取模板');
     const records=templateRecords().filter(m=>m.revision===basis.revision&&m.stamp===attachment.manifest.stamp);records.push(attachment.manifest);localStorage.setItem(TEMPLATE_KEY,JSON.stringify(records.slice(-30)));return attachment;
   }
   async function analysisImportPreview(file){
     requireFinance();const basis=state;if(!/\.xlsx$/i.test(file.name))throw Error('请选择 .xlsx 格式的核算模板');if(file.size>5*1024*1024)throw Error('Excel文件须小于5MB');const result=await ProjectExcel.readTemplate(await file.arrayBuffer(),basis,templateRecords());requireFinance();if(state!==basis)throw Error('数据版本已变化，请重新发送文件');return ProjectExcel.previewWorkbook(state,result,file.name);
   }
   function analysisImportConfirm(preview){requireFinance();const next=ProjectExcel.applyWorkbook(state,preview);persist(next);render();return next.revision;}
+  function openAnalysisImport(){
+    requireFinance();const scope=currentTab()?.nav==='project-analysis'?'project':'person',label=scope==='project'?'项目':'人员';
+    let pending=null,busy=false;
+    const people=scope==='person'?ProjectExcel.personnelInfo(state):[];
+    const projectRows=scope==='project'?ProjectExcel.projectImportRows(state):[];
+    const filterTitles=scope==='person'?{roles:'角色',departments:'部门'}:{teams:'所属团队',expenseTypes:'费用类型',roles:'角色'},selectionKeys=Object.keys(filterTitles);
+    const multi=(key,title,items)=>`<div class="analysis-import-filter"><span>${title}</span><details data-import-multi="${key}"><summary>全部${title}</summary><div class="analysis-import-options"><label><input type="checkbox" data-import-choice="${key}" value="all" checked>全部${title}</label>${items.map(item=>`<label><input type="checkbox" data-import-choice="${key}" value="${esc(item)}">${esc(item)}</label>`).join('')}</div></details></div>`;
+    const importFilters=`<div class="analysis-import-filters">${scope==='person'?multi('roles','角色',[...new Set(people.flatMap(p=>p.projectRoles))])+multi('departments','部门',[...new Set(people.map(p=>p.department))]):multi('teams','所属团队',[...new Set(projectRows.map(r=>r.team))])+multi('expenseTypes','费用类型',['项目人员提成','项目异常费用','项目固定成本分摊'])+multi('roles','角色',[...new Set(state.members.map(r=>r.role).filter(Boolean))])}</div>`;
+    openDialog(label+'核算数据导入',`<form id="analysis-import-form"><section class="analysis-import-section" aria-labelledby="import-download-title"><h3 id="import-download-title"><span>1</span>下载模板</h3><div class="analysis-import-controls"><label class="field">所属月份<select name="importMonth">${options(state.months.map(m=>({id:m,name:m})),month)}</select></label></div>${importFilters}<div class="analysis-import-download-row">${button('下载导入模板','analysis-import-template','','primary')}<span>按所选范围生成 Excel</span></div><p class="rule-text">${scope==='project'?'角色仅筛选人员提成；异常费用、固定成本分摊不关联角色。':'同一人员仅一行。'}只填写黄色金额列，空白保持原值，0覆盖为0。</p></section><section class="analysis-import-section analysis-import-upload" aria-labelledby="import-upload-title"><h3 id="import-upload-title"><span>2</span>上传数据</h3><label class="analysis-import-file">上传填写后的模板<input type="file" accept=".xlsx" aria-label="选择填写后的导入模板"></label><div id="analysis-import-preview"><div class="empty">选择 Excel 后预览导入差异</div></div><div id="form-error" class="form-error" role="alert" hidden></div></section><div class="form-actions">${button('取消','dialog-close')}${button('确认导入','dialog-save','disabled','primary')}</div></form>`,()=>{
+      requireFinance();if(busy||!pending)throw Error('请先选择文件并完成校验');
+      analysisImportConfirm(pending);closeDialog(true);toast(label+'核算数据已导入，分析已更新');
+    },true,'核算数据 · Excel导入');
+    const sequence=dialogSequence,form=body.querySelector('#analysis-import-form'),period=form.elements.importMonth,download=form.querySelector('[data-action="analysis-import-template"]'),file=form.querySelector('input[type="file"]'),save=form.querySelector('[data-action="dialog-save"]'),previewBox=form.querySelector('#analysis-import-preview');
+    const alive=()=>dialog.open&&sequence===dialogSequence;
+    const selection=()=>Object.fromEntries(selectionKeys.map(key=>[key,[...form.querySelectorAll(`[data-import-choice="${key}"]:checked`)].map(el=>el.value).filter(value=>value!=='all')]));
+    const selectionStamp=s=>JSON.stringify(selectionKeys.map(key=>[...(s[key]||[])].sort()));
+    const resetPreview=()=>{pending=null;save.disabled=true;file.value='';form.querySelector('#form-error').hidden=true;previewBox.innerHTML='<div class="empty">请下载当前筛选范围的模板</div>';};
+    const setBusy=value=>{busy=value;download.disabled=value;file.disabled=value;period.disabled=value;form.querySelectorAll('[data-import-choice]').forEach(el=>el.disabled=value);save.disabled=value||!pending||!!pending.errors.length;};
+    form.querySelectorAll('[data-import-choice]').forEach(input=>input.onchange=()=>{
+      const key=input.dataset.importChoice,choices=[...form.querySelectorAll(`[data-import-choice="${key}"]`)],all=choices.find(el=>el.value==='all');
+      if(input.value==='all'){all.checked=true;choices.filter(el=>el!==all).forEach(el=>el.checked=false);}else{all.checked=!choices.some(el=>el!==all&&el.checked);}
+      const picked=choices.filter(el=>el!==all&&el.checked).map(el=>el.value);
+      form.querySelector(`[data-import-multi="${key}"] summary`).textContent=picked.length?picked.join('、'):'全部'+filterTitles[key];
+      resetPreview();
+    });
+    period.onchange=resetPreview;
+    download.onclick=()=>guard(async()=>{if(busy)return;setBusy(true);try{const attachment=await analysisTemplate(period.value,scope,selection());if(alive())downloadExcel(attachment);}finally{if(alive())setBusy(false);}});
+    file.onchange=()=>guard(async()=>{
+      pending=null;save.disabled=true;const selected=file.files[0];if(!selected)return;
+      const basis=state,selectedMonth=period.value;setBusy(true);previewBox.innerHTML='<div class="empty">正在校验Excel…</div>';
+      try{
+        requireFinance();if(!/\.xlsx$/i.test(selected.name))throw Error('请选择 .xlsx 格式的导入模板');if(selected.size>5*1024*1024)throw Error('Excel文件须小于5MB');
+        const result=await ProjectExcel.readTemplate(await selected.arrayBuffer(),basis,templateRecords());if(!alive())return;requireFinance();if(state!==basis)throw Error('数据版本已变化，请重新下载模板');
+        if(result.scope!==scope)throw Error('请使用'+label+'分析页面下载的专用模板');
+        if(result.month!==selectedMonth)throw Error('文件月份与所选月份不一致，请切换月份或重新下载模板');
+        if(selectionStamp(result.selection)!==selectionStamp(selection()))throw Error('文件的'+(scope==='person'?'角色、部门':'所属团队、费用类型、角色')+'范围与当前筛选不一致，请重新下载模板或恢复对应筛选');
+        pending=ProjectExcel.previewWorkbook(state,result,selected.name);
+        const rows=pending.groups.flatMap(g=>g.rows.filter(r=>r.kind!=='skip').map(r=>[esc(typeNames[g.type]),esc([r.projectId?pName(r.projectId):'',r.personId?uName(r.personId):''].filter(Boolean).join(' / ')),r.oldValue==null?'无记录':money(r.oldValue),money(r.newValue),esc(r.error||'可导入')]));
+        previewBox.innerHTML=`<div class="notice ${pending.errors.length?'':'success'}">${esc(selected.name)} · ${result.month} · ${rows.length} 条金额${pending.errors.length?'，存在错误：'+esc(pending.errors.join('；')):'，核对后确认导入'}</div>${table(['数据类型','人员 / 项目','原金额','导入金额','校验'],rows)}`;
+        form.querySelector('#form-error').hidden=true;formDirty=true;publish();
+      }catch(error){if(alive()){pending=null;previewBox.innerHTML='<div class="notice">文件未通过校验，请调整后重新选择。</div>';throw error;}}
+      finally{if(alive())setBusy(false);}
+    });
+  }
   function lobster(){
     requireFinance();
     openDialog('小龙虾 · 核算助手',`<div class="lobster-chat"><p class="chat-caption">对话演示 · 文件在当前浏览器处理 · 支持 2026-09 至 2026-11</p><div id="lobster-history" class="chat" role="log" aria-live="polite"></div><div class="chat-composer"><textarea id="lobster-input" aria-label="发送给龙虾的消息" placeholder="例如：录入2026年11月核算数据；上传后回复“确认导入”"></textarea><div class="chat-composer-actions"><label class="chat-file-picker">选择文件<input id="excel-file" type="file" aria-label="选择发送文件" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>${button('发送','chat-send','','primary')}</div></div></div>`,null,true,'AI ASSISTANT · 纯对话');
@@ -377,8 +439,11 @@
     downloadExcel(file);toast('已按模板导出核算Excel');
   }
   function showManagerAlerts(level='all'){const result=ProjectManagementInsights.alertDialog(ctx(),level);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 预警与行动');}
-  function showError(error){const el=document.getElementById('form-error'),weekError=content.querySelector('#week-error');if(dialog.open&&el){el.textContent=error.message;el.hidden=false;}else if(!dialog.open&&weekError){weekError.textContent=error.message;weekError.hidden=false;}else toast(error.message,true);}
+  function showError(error){const el=document.getElementById('form-error'),weekError=content.querySelector('#week-error'),createError=content.querySelector('#delivery-create-error');if(dialog.open&&el){el.textContent=error.message;el.hidden=false;}else if(!dialog.open&&createError){deliveryCreateDraft.error=error.message;createError.textContent=error.message;createError.hidden=false;createError.scrollIntoView({block:'nearest'});}else if(!dialog.open&&weekError){weekError.textContent=error.message;weekError.hidden=false;}else toast(error.message,true);}
   function guard(fn){try{const value=fn();if(value?.catch)value.catch(showError);}catch(error){showError(error);}}
+  document.addEventListener('pointerdown',event=>{
+    body.querySelectorAll('#analysis-import-form [data-import-multi][open]').forEach(menu=>{if(!menu.contains(event.target))menu.open=false;});
+  });
   document.addEventListener('click',event=>{
     const target=event.target.closest('[data-action]');if(!target||target.disabled)return;
     event.preventDefault();const a=target.dataset.action;
@@ -398,6 +463,11 @@
       if(a==='delivery-range'){collectDeliverySearch();const days={'今天':0,'昨天':1,'近7天':6,'近30天':29,'近半年':183,'近1年':365},end='2026-11-09';deliveryFilters.start=addDays(end,-days[target.dataset.range]);deliveryFilters.end=target.dataset.range==='昨天'?addDays(end,-1):end;deliveryFilters.range=target.dataset.range;render();}
       if(a==='delivery-refresh')render();
       if(a==='delivery-new')addDeliveryProject();
+      if(a==='delivery-create-save')saveDeliveryProject();
+      if(a==='delivery-create-cancel'){if(close('project-create'))navigate('projects');}
+      if(a==='delivery-create-add'){requireFinance();deliveryCreateDraft.members.push(ProjectDeliveryCreate.newMember('咨询师'));deliveryCreateDraft.dirty=true;render();}
+      if(a==='delivery-create-remove'){requireFinance();deliveryCreateDraft.members=deliveryCreateDraft.members.filter(r=>r.key!==target.dataset.key);deliveryCreateDraft.dirty=true;render();}
+      if(a==='delivery-create-file-remove'){deliveryCreateDraft.files.splice(Number(target.dataset.index),1);deliveryCreateDraft.dirty=true;render();}
       if(a==='delivery-export')exportDelivery();
       if(a==='delivery-pick')pickDelivery(target.dataset.section);
       if(a==='delivery-add-member')addDeliveryMember();
@@ -453,6 +523,7 @@
       if(a==='manager-rules'){const rules=content.querySelector('.manager-rules');if(rules){rules.open=true;rules.scrollIntoView({behavior:'smooth',block:'start'});}}
       if(a==='manager-detail-person'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.personManagerView='efficiency';render();}
       if(a==='export-analysis')return exportAnalysis();
+      if(a==='analysis-import')openAnalysisImport();
       if(a==='reset'){if(!confirm('重置仅影响本次项目管理优化 Demo 的本地数据，确定恢复示例吗？'))return;try{localStorage.removeItem(KEY);localStorage.removeItem(PIN_KEY);localStorage.removeItem(TEMPLATE_KEY);chatSession.messages=[];chatSession.pending=null;weekInputs.clear();lastRaw=null;persist(M.seed());if(dialog.open)closeDialog(true);render();toast('已恢复虚构示例数据');}catch(e){throw Error('重置失败：'+e.message);}}
     });
   });
@@ -465,6 +536,14 @@
   }
   document.addEventListener('change',event=>{
     const el=event.target;if(el.matches('[data-mobile-project]'))guard(()=>selectMobileProject(el.dataset.mobileProject,el.value));if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
+    if(el.closest('#delivery-create-form'))guard(()=>{
+      requireFinance();ProjectDeliveryCreate.capture(el.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';
+      if(el.name==='orderNo'){ProjectDeliveryCreate.chooseOrder(state,deliveryCreateDraft);render();}
+      else if(el.name==='salesId'){ProjectDeliveryCreate.chooseSales(state,deliveryCreateDraft);render();}
+      else if(el.name.startsWith('personId-'))render();
+      else if(el.name==='attachments'){ProjectDeliveryCreate.addFiles(deliveryCreateDraft,el.files);render();}
+      else refreshDeliveryCreate();publish();
+    });
     if(el.id==='delivery-member-month'){currentTab().period=el.value;render();}
     if(el.dataset.projectMeta)guard(()=>{requireFinance();const next=structuredClone(state),p=next.projects.find(p=>p.id===el.dataset.id);p[el.dataset.projectMeta]=el.value;next.revision++;persist(next);toast('项目标记已保存');});
     if(el.id==='demo-role'){if(dialog.open&&!closeDialog()){el.value=role;return;}role=el.value;if(employee()){tabs=tabs.filter(t=>t.nav==='schedule');active=tabs[0]?.key||null;navigate('schedule');}else render();}
@@ -472,10 +551,12 @@
   });
   document.addEventListener('click',event=>{const el=event.target.closest('button[data-filter]');if(el){event.preventDefault();guard(()=>applyFilter(el.dataset.filter,el.dataset.value));}});
   content.addEventListener('input',event=>{
+    if(event.target.closest('#delivery-create-form')){ProjectDeliveryCreate.capture(event.target.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';const error=content.querySelector('#delivery-create-error');if(error)error.hidden=true;refreshDeliveryCreate();publish();return;}
     if(event.target.matches('[data-cell-description]')){setEntryMeta(event.target.dataset.cellDescription,'description',event.target.value);return;}
     if(event.target.matches('[data-week-cell]')){setWeekCell(event.target.dataset.weekCell,event.target.value);content.querySelector('#week-error').hidden=true;refreshWeek();return;}
 
   });
+  content.addEventListener('submit',event=>{if(event.target.id==='delivery-create-form'){event.preventDefault();guard(saveDeliveryProject);}});
   content.addEventListener('keydown',event=>{
     if(!content.querySelector('.schedule-weekly'))return;
     if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();saveWeek();return;}
@@ -483,7 +564,7 @@
   });
   const markDirty=event=>{if(event.target.id==='settings-month'||event.target.matches('[data-manager-alert-level]'))return;if(body.querySelector('#lobster-history')){chatDirty();return;}formDirty=true;publish();};body.addEventListener('input',markDirty);body.addEventListener('change',markDirty);
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialog();});
-  window.addEventListener('beforeunload',event=>{if(formDirty||[...weekInputs.values()].some(c=>c.dirty)){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(formDirty||deliveryCreateDraft?.dirty||[...weekInputs.values()].some(c=>c.dirty)){event.preventDefault();event.returnValue='';}});
   window.addEventListener('storage',event=>{if(event.key===KEY&&event.newValue!==lastRaw){storageProblem='演示数据已在其他窗口变更，请刷新后继续，避免覆盖。';renderStorage();}});
   let marksConfigured=false;
   const marks=document.getElementById('project-marks');
