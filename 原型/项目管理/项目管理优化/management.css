@@ -85,3 +85,7 @@
 .aa-excel-attachment b{font-size:11px;color:#68927a;display:block;overflow-wrap:anywhere}
 .aa-excel-attachment small{font-size:9px;color:#9aafa1}
 .aa-excel-attachment button{border:0;background:transparent;color:#739b84;font-size:11px;min-height:34px;cursor:pointer;flex:none}
+
+.aa-import-shortcut{font-size:11px;white-space:nowrap;min-height:32px;padding:5px 9px;border:1px solid #ecd3c4;background:#fff8f2;color:#b37353}.aa-import-shortcut:hover{background:#fff0e5;color:#995536}.aa-import-shortcut:disabled{opacity:.55;cursor:default}
+
+.aa-import-actions{display:flex;margin-bottom:8px}.aa-import-shortcut{border-radius:6px;cursor:pointer}

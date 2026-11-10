@@ -75,7 +75,6 @@
   function heading(eyebrow,title,description,actions=''){return `<header class="page-heading"><div><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p>${esc(description)}</p></div><div class="heading-actions">${actions}</div></header>`;}
   function render(){
     document.body.classList.toggle('mobile-mode',(mobile||matchMedia('(max-width:760px)').matches)&&currentTab()?.nav==='schedule');document.body.classList.toggle('delivery-page',currentTab()?.nav==='projects');
-    document.getElementById('lobster-tool').hidden=role!=='finance';
     document.getElementById('demo-person').innerHTML=options(state.people,personId);
     const page=currentTab()?.nav;content.dataset.erpPage=page||'empty';
     if(!active)content.innerHTML=U.empty('从左侧菜单打开业务页面');
@@ -363,14 +362,19 @@
   }
   function monthClose(){requireFinance();if(!confirm(`确认月结 ${month}？将保存输入和结果快照，并锁定本月数据。`))return;mutate(s=>M.closeMonth(s,month),month+' 已月结，数据已锁定');if(dialog.open)closeDialog(true);}
   function monthReopen(){requireFinance();const revision=state.revision;openDialog(month+' · 反结账',`<form><div class="notice">反结账后可修改本月数据并重新核算。存在更晚已结月份时，须先从后往前反结账，避免覆盖后续快照。</div><label class="field">反结账原因<textarea name="reason" required placeholder="说明调整依据及影响"></textarea></label>${formActions('确认反结账')}</form>`,()=>{requireFinance();persist(M.reopenMonth(state,month,values().reason,revision));closeDialog(true);render();toast('已反结账，请调整后重新试算并月结');});}
-  function exportAnalysis(){
+  async function exportAnalysis(){
     if(employee())throw Error('当前身份不能导出核算数据');
-    const d=ProjectManagementInsights.data(ctx()),kind=d.project?'project':'person';
-    const rows=[['类型','名称',d.project?'项目团队':'筛选角色','月份','交付收入','总成本','税前利润','所得税','净利润','净利率','盈亏平衡（个人按所选当月）','完整性']];
-    for(const r of d.rows){const pretax=M.round(r.selected.reduce((n,x)=>n+x.pretax,0)),breakEven=d.project&&d.cumulative?r.now.cumulative.breakEven:r.now.breakEven;
-      rows.push([d.project?'项目':'人员',r.entity.name,d.project?d.teamOf(r.entity):d.selectedRole==='all'?'全部角色':d.selectedRole,d.cumulative?'累计至'+month:month,r.income,r.cost,pretax,r.tax,r.net,r.margin??'无法测算',breakEven??'无法测算',r.missing.join('；')||'完整']);
+    const d=ProjectManagementInsights.data(ctx());
+    if(!d.project){
+      const basis=state,periods=d.cumulative?state.months.filter(period=>period<=month).sort():[month];
+      const people=d.entities.map(person=>ProjectConsultants.profile(person));
+      const file=await ProjectExcel.createPersonnelReport(basis,{months:periods,people,role:d.selectedRole});
+      if(employee())throw Error('当前身份不能导出核算数据');
+      downloadExcel(file);toast('已按模板导出核算Excel');return;
     }
-    const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=(d.project?'项目分析':'项目人效分析')+'_'+month+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('已导出当前筛选范围的核算数据');
+    const file=await ProjectExcel.createProjectReport(state,{month,cumulative:d.cumulative,team:d.selectedTeam,rows:d.rows.map(r=>({...r,orderNo:ProjectDelivery.info(state,r.entity).order}))});
+    if(employee())throw Error('当前身份不能导出核算数据');
+    downloadExcel(file);toast('已按模板导出核算Excel');
   }
   function showManagerAlerts(level='all'){const result=ProjectManagementInsights.alertDialog(ctx(),level);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 预警与行动');}
   function showError(error){const el=document.getElementById('form-error'),weekError=content.querySelector('#week-error');if(dialog.open&&el){el.textContent=error.message;el.hidden=false;}else if(!dialog.open&&weekError){weekError.textContent=error.message;weekError.hidden=false;}else toast(error.message,true);}
@@ -438,7 +442,6 @@
       if(a==='schedule-day'){filters.date=target.dataset.date;filters.scheduleView='day';render();}
       if(a==='mobile-toggle'){mobile=!mobile;navigate('schedule');render();}
       if(a==='correct')correctAmount(target.dataset.collection,target.dataset.id);
-      if(a==='lobster')lobster();
       if(a==='batch-detail')showBatch(target.dataset.id);
       if(a==='sources')showSources(target.dataset.kind,target.dataset.id,target.dataset.month);
       if(a==='trial')trial();
@@ -449,7 +452,7 @@
       if(a==='manager-diagnose'){const result=ProjectManagementInsights.diagnose(ctx(),target.dataset.id);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 决策诊断');}
       if(a==='manager-rules'){const rules=content.querySelector('.manager-rules');if(rules){rules.open=true;rules.scrollIntoView({behavior:'smooth',block:'start'});}}
       if(a==='manager-detail-person'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.personManagerView='efficiency';render();}
-      if(a==='export-analysis')exportAnalysis();
+      if(a==='export-analysis')return exportAnalysis();
       if(a==='reset'){if(!confirm('重置仅影响本次项目管理优化 Demo 的本地数据，确定恢复示例吗？'))return;try{localStorage.removeItem(KEY);localStorage.removeItem(PIN_KEY);localStorage.removeItem(TEMPLATE_KEY);chatSession.messages=[];chatSession.pending=null;weekInputs.clear();lastRaw=null;persist(M.seed());if(dialog.open)closeDialog(true);render();toast('已恢复虚构示例数据');}catch(e){throw Error('重置失败：'+e.message);}}
     });
   });
