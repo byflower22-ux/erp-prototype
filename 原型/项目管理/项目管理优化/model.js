@@ -303,6 +303,41 @@
     if(state.demoFixtures?.multiProjectSchedule===1||!state.people.some(p=>p.id==='u2'))return state;
     return addScheduleExample(next(state,'补充多项目日程示例',{personId:'u2',addedProjects:4}));
   }
+  function addPersonnelExamples(s){
+    const specs=[
+      ['顾清和','B33901','战略咨询部',15500,2500,'项目总监',.55],['陆承远','B33902','战略咨询部',12000,2000,'项目顾问',.35],
+      ['程嘉宁','B33903','组织发展部',13000,2200,'方案经理',.55],['苏以棠','B33904','组织发展部',10500,1800,'内训顾问',.35],
+      ['江予辰','B33905','数字化咨询部',14500,2400,'方案支持',.55],['温书禾','B33906','数字化咨询部',11000,1900,'实施交付',.35]
+    ],projects=[['朗岳战略经营提升',330000,[60000,80000,100000]],['知远组织人才发展',240000,[40000,55000,60000]],['新禾数字化流程建设',180000,[45000,35000,24000]]];
+    projects.forEach(([name,contract,incomes],i)=>{const id='p-people-demo-'+(i+1);
+      if(!s.projects.some(p=>p.id===id))s.projects.push({id,name:name+'（示例）',type:'管理咨询',status:'进行中',ownerId:'people-demo-'+(i*2+1),contract,startDate:'2026-09-01',endDate:'2027-03-31',receivable:contract-incomes.reduce((total,income)=>total+Math.round(income*.7),0),code:'XM20261120000'+(i+1),orderNo:'BS261120000'+(i+1),company:name.slice(0,2)+'有限公司',team:'博商管理咨询',createdAt:'2026-09-01'});
+      s.months.forEach((month,index)=>{if(s.closed[month])return;const income=incomes[index]??incomes[incomes.length-1],prefix='people-demo-project-'+i+'-'+month;
+        if(!s.delivery.some(r=>r.projectId===id&&r.month===month))s.delivery.push({id:prefix+'-delivery',projectId:id,month,amount:income});
+        if(!s.receipts.some(r=>r.projectId===id&&r.month===month))s.receipts.push({id:prefix+'-receipt',projectId:id,month,amount:Math.round(income*.7)});
+        ['business','management','travel'].forEach(category=>{if(!s.actualCosts.some(r=>r.projectId===id&&r.month===month&&r.category===category))s.actualCosts.push({id:prefix+'-'+category,projectId:id,month,category,amount:category==='travel'?1800:Math.round(income*(category==='business'?.04:.08))});});
+        ['accountManager','exception','yearBonus','fixed'].forEach(category=>{if(!s.expenses.some(r=>r.projectId===id&&r.month===month&&r.category===category))s.expenses.push({id:prefix+'-'+category,projectId:id,month,category,amount:{accountManager:1200,exception:0,yearBonus:800,fixed:600}[category]});});
+      });
+    });
+    specs.forEach(([name,employeeNo,department,salary,benefits,role,ratio],i)=>{
+      const id='people-demo-'+(i+1),accountId='erp-people-demo-'+(i+1),projectId='p-people-demo-'+(Math.floor(i/2)+1);
+      if(s.people.some(p=>p.id===id||p.accountId===accountId))return;
+      s.people.push({id,accountId,name,employeeNo,department:'博商管理咨询 / '+department,status:'在职',joined:'2025-03-03',role:'咨询师',fixedSalary:salary,fixedBenefits:benefits,note:'人效分析模拟示例'});
+      s.members.push({projectId,personId:id,role:'咨询师'},{projectId,personId:id,role});
+      s.months.forEach((month,index)=>{if(s.closed[month])return;const prefix='people-demo-'+i+'-'+month;
+        s.ratios.push({id:prefix+'-ratio',personId:id,projectId,month,ratio});
+        s.commissions.push({id:prefix+'-commission',personId:id,projectId,month,amount:i<4?800+i*150:600});
+        s.bonuses.push({id:prefix+'-bonus',personId:id,month,amount:index===1&&i<3?1200:0});
+        if(month==='2026-11'){
+          [2,3,4,5,9].forEach((day,j)=>{const hours=[8,6,7,5,6,4][i],workItemId=j===0?'preparation':j===4?'review':'onsite';s.times.push({id:prefix+'-time-'+day,personId:id,projectId,role:'咨询师',date:month+'-'+String(day).padStart(2,'0'),hours,workItemId,activity:j===0?'项目准备':j===4?'后期复盘':'入企服务',description:'',status:'submitted'});});
+        }else s.historicalTimes.push({id:prefix+'-hours',personId:id,projectId,month,hours:[144,112,128,96,120,88][i]+index*8,source:'历史估算'});
+      });
+    });
+    s.demoFixtures={...s.demoFixtures,personnelAnalysis:1};return s;
+  }
+  function ensurePersonnelExamples(state){
+    if(state.demoFixtures?.personnelAnalysis===1)return state;
+    return addPersonnelExamples(next(state,'补充人效分析人员示例',{addedPeople:6}));
+  }
   function seed(){
     const s={revision:1,months:['2026-09','2026-10','2026-11'],projects:[{id:'p1',team:'博商咨询管理',name:'星澜制造数字化咨询（示例）',type:'管理咨询',status:'进行中',ownerId:'u1',contract:480000,startDate:'2026-09-01',receivable:330000},{id:'p2',name:'青禾零售组织升级（示例）',type:'组织咨询',status:'进行中',ownerId:'u2',contract:300000,startDate:'2026-09-01',receivable:230000},{id:'p3',name:'云岑新项目筹备（示例）',type:'专项咨询',status:'筹备中',ownerId:'u3',contract:180000,startDate:'2026-11-01',receivable:180000}],people:[{id:'u1',name:'林予安',joined:'2024-03-01',role:'项目经理'},{id:'u2',name:'周知行',joined:'2025-01-06',role:'咨询师'},{id:'u3',name:'许映舟',joined:'2026-09-01',role:'咨询师'}],members:[{projectId:'p1',personId:'u1',role:'项目经理'},{projectId:'p1',personId:'u2',role:'咨询师'},{projectId:'p2',personId:'u1',role:'咨询师'},{projectId:'p2',personId:'u2',role:'项目经理'},{projectId:'p2',personId:'u3',role:'咨询师'},{projectId:'p3',personId:'u3',role:'项目经理'}],calendar:{},delivery:[],receipts:[],actualCosts:[],salaries:[],commissions:[],bonuses:[],expenses:[],ratios:[],times:[],historicalTimes:[],batches:[],closed:{},audit:[]};
     let id=0;const add=(key,row)=>s[key].push({id:key+'-'+(++id),...row});
@@ -333,7 +368,7 @@
     }
     for(let day=2;day<=5;day++)for(const person of s.people){const projectId=person.id==='u3'?'p2':'p1',member=s.members.find(x=>x.projectId===projectId&&x.personId===person.id);add('times',{personId:person.id,projectId,role:member.role,date:'2026-11-0'+day,hours:6,workItemId:day===2?'preparation':day===5?'review':'onsite',activity:day===2?'项目准备':day===5?'后期复盘':'入企服务',description:day===2?'准备访谈提纲':day===5?'整理交付反馈':'现场调研与访谈',start:'09:00',end:'15:00',status:'submitted'});}
     s.people.forEach(p=>Object.assign(p,{fixedSalary:{u1:15000,u2:12000,u3:9000}[p.id],fixedBenefits:{u1:3000,u2:2000,u3:2000}[p.id]}));
-    return addScheduleExample(s);
+    return addPersonnelExamples(addScheduleExample(s));
   }
-  return {round,projectStatus,seed,ensureScheduleExample,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay};
+  return {round,projectStatus,seed,ensureScheduleExample,ensurePersonnelExamples,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay};
 });

@@ -10,7 +10,17 @@ for(const [type,sheet,cell] of [['salary','sheet','H6'],['bonus','sheet','J6'],[
 test('formula including cached numeric result is rejected',async()=>{const x=await fixture();x.sheet.getCell('H6').value={formula:'100+200',result:300};await assert.rejects(read(x),/公式/);});
 for(const value of ['=100+200','abc',-1,true])test('invalid amount '+String(value)+' rejected',async()=>{const x=await fixture();x.project.getCell('K6').value=value;await assert.rejects(read(x),/金额/);});
 test('identity edits in either sheet rejected',async()=>{for(const name of ['sheet','project']){const x=await fixture();x[name].getCell('B6').value='bad';await assert.rejects(read(x),/身份|预填/);}});
-test('headers removed sheets extra sheets and added rows rejected',async()=>{const x=await fixture();x.sheet.getCell('H5').value='金额';await assert.rejects(read(x),/表头/);const y=await fixture();y.book.removeWorksheet(y.project.id);await assert.rejects(read(y),/工作表/);const z=await fixture();z.book.addWorksheet('新增');await assert.rejects(read(z),/工作表/);const q=await fixture();q.sheet.getCell('H10').value=1;await assert.rejects(read(q),/额外|行/);});
+test('headers removed sheets extra sheets and added rows rejected',async()=>{const x=await fixture();x.sheet.getCell('H5').value='金额';await assert.rejects(read(x),/表头/);const y=await fixture();y.book.removeWorksheet(y.project.id);await assert.rejects(read(y),/工作表/);const z=await fixture();z.book.addWorksheet('新增');await assert.rejects(read(z),/工作表/);const q=await fixture();q.sheet.getCell('H'+(q.manifest.sheets[0].rows.length+6)).value=1;await assert.rejects(read(q),/额外|行/);});
+test('multiple project roles share one commission input and import once',async()=>{
+ const x=await fixture(),rows=x.manifest.sheets.find(s=>s.name==='项目核算数据').rows;
+ const commission=rows.filter(r=>r.inputs.some(input=>input.type==='commission'));
+ const matches=commission.filter(r=>r.personId==='people-demo-1'&&r.projectId==='p-people-demo-1');
+ assert.equal(matches.length,1);assert.match(matches[0].cells[7],/咨询师/);assert.match(matches[0].cells[7],/项目总监/);
+ const row=rows.indexOf(matches[0])+6;x.project.getCell('K'+row).value=1234;
+ const next=IO.applyWorkbook(x.state,IO.previewWorkbook(x.state,await read(x),'多角色.xlsx'));
+ const saved=next.commissions.filter(r=>r.personId==='people-demo-1'&&r.projectId==='p-people-demo-1'&&r.month==='2026-11');
+ assert.equal(saved.length,1);assert.equal(saved[0].amount,1234);
+});
 test('reordered complete rows keep identity rather than spreadsheet position',async()=>{const x=await fixture(),a=x.sheet.getRow(6).values,b=x.sheet.getRow(7).values;x.sheet.getRow(6).values=b;x.sheet.getRow(7).values=a;x.sheet.getCell('H6').value=700;const r=await read(x);assert.equal(group(r,'salary').rows.find(r=>r.personId==='u2').value,700);});
 test('unknown old template and stale data rejected',async()=>{const x=await fixture();await assert.rejects(IO.readTemplate(x.buffer,x.state,[]),/模板/);x.state.revision++;await assert.rejects(read(x),/版本|变化/);});
 test('changed input basis with same revision rejected',async()=>{const x=await fixture();x.state.salaries[0].amount++;await assert.rejects(read(x),/变化|重新/);});

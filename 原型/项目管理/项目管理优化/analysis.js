@@ -4,11 +4,13 @@
     const {state:s,month,filters:f={}}=ctx,project=ctx.page==='project-analysis';
     const projects=s.projects.filter(x=>x.startDate>='2026-02-01'&&x.startDate.slice(0,7)<=month),members=s.members.filter(x=>projects.some(p=>p.id===x.projectId));
     const teamOf=p=>root.ProjectDelivery?.info(s,p).team||p.team||'博商管理咨询';
-    const roles=[...new Set(['咨询师',...members.map(x=>x.role).filter(Boolean)])],teams=[...new Set(projects.map(teamOf))];
-    const selectedRole=f.analysisRole||'咨询师',selectedTeam=f.analysisTeam||'all';
-    const collection=project?projects.filter(x=>selectedTeam==='all'||teamOf(x)===selectedTeam):s.people.filter(x=>x.joined.slice(0,7)<=month&&(selectedRole==='all'||members.some(v=>v.personId===x.id&&v.role===selectedRole)));
+    const roles=[...new Set(['项目总监','项目经理','项目顾问','方案经理','业务经理','内训顾问','方案支持','实施交付','咨询师',...members.map(x=>x.role).filter(Boolean)])],teams=[...new Set(projects.map(teamOf))];
+    const selectedRole=f.analysisRole||'咨询师',selectedTeam=f.analysisTeam||'all',selectedDepartment=f.analysisDepartment||'all';
+    const departmentOf=person=>String(root.ProjectConsultants?.profile(person).department||person.department||'未分配部门').split(/\s*[/／]\s*/).filter(Boolean).join('/');
+    const departments=[...new Set(s.people.filter(person=>person.joined.slice(0,7)<=month).map(departmentOf))];
+    const collection=project?projects.filter(x=>selectedTeam==='all'||teamOf(x)===selectedTeam):s.people.filter(x=>x.joined.slice(0,7)<=month&&(selectedDepartment==='all'||departmentOf(x)===selectedDepartment||departmentOf(x).startsWith(selectedDepartment+'/'))&&(selectedRole==='all'||members.some(v=>v.personId===x.id&&v.role===selectedRole)));
     const selection=(project?f.analysisProject:f.analysisPerson)||'all',entities=selection==='all'?collection:collection.filter(x=>x.id===selection);
-    return {project,collection,entities,selection,roles,teams,selectedRole,selectedTeam,teamOf,members};
+    return {project,collection,entities,selection,roles,teams,selectedRole,selectedTeam,selectedDepartment,departments,departmentOf,teamOf,members};
   };
   root.ProjectAnalysisScope={select:scope};
   const projectCosts={business:'业务费用 · 实际',management:'管理费用 · 实际',travel:'差旅费用 · 实际',tax:'税费 3.3%',accountManager:'大客户经理提成 · 预计',commission:'项目提成',salary:'项目人工 · 分摊',exception:'例外费用 · 预计',yearBonus:'年终奖分摊 · 预计',fixed:'固定费用 · 预计'};

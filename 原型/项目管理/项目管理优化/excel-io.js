@@ -44,7 +44,13 @@
       if(teams.length&&!teams.includes(team)||expenseTypes.length&&!expenseTypes.includes(names[type])||type==='commission'&&roles.length&&!roles.includes(member.role))continue;
       rows.push({...member,type,team});
     }
-    return rows;
+    const grouped=new Map();
+    for(const row of rows){
+      const key=JSON.stringify([row.type,row.projectId,row.personId||null]),existing=grouped.get(key);
+      if(!existing){grouped.set(key,{...row});continue;}
+      if(row.role)existing.role=[...new Set([existing.role,row.role].filter(Boolean).flatMap(role=>role.split(' / ')))].join(' / ');
+    }
+    return [...grouped.values()];
   }
   async function createTemplate(state,month,id,scope='all',selection={}){
     if(!['all','person','project'].includes(scope))fail('不支持的模板类型');

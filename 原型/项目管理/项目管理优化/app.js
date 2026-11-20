@@ -7,13 +7,14 @@
   let state,lastRaw=null,storageProblem='',tabs=[],active=null,role='finance',personId='u1',month='2026-11',mobile=new URLSearchParams(location.search).get('mobile')==='1'||!ERPClient.hosted&&innerWidth<500,mobileHome=new URLSearchParams(location.search).get('mobile')==='1',formDirty=false,dialogSave=null,preview=null,timer,dialogSequence=0;
   const filters={date:'2026-11-09',scheduleView:'week',project:'all',query:'',financeTab:'data',dataType:'salaries',analysisProject:'all',analysisPerson:'all',analysisRole:'咨询师',analysisTeam:'all',periodMode:'month',status:'all'};
   const weekInputs=new Map();
+  let scheduleListObserver=null;
   try{
     lastRaw=localStorage.getItem(KEY);
     state=lastRaw?JSON.parse(lastRaw):M.seed();
     if(!state.projects||!state.people||!Number.isInteger(state.revision))throw Error('本地演示数据格式不正确，请重置示例');
   }catch(error){state=M.seed();storageProblem=error.message;}
   if(!storageProblem){
-    const updated=ProjectDeliveryApplications.ensureExample(M.ensureScheduleExample(state));
+    const updated=ProjectDeliveryApplications.ensureExample(M.ensurePersonnelExamples(M.ensureScheduleExample(state)));
     if(updated!==state)try{persist(updated);}catch(error){storageProblem=error.message;}
   }
   // 旧版 Demo 的未确认工时不作为实际投入，取消草稿后移除，正式记录保留。
@@ -60,7 +61,7 @@
   }
   function openDialog(title,html,onSave=null,wide=false,eyebrow='项目管理 · ERP-I005'){
     if(dialog.open&&!closeDialog())return;
-    dialog.classList.remove('delivery-application-dialog','schedule-mobile-confirm');dialog.classList.toggle('mobile-sheet',currentTab()?.nav==='schedule'&&ctx().mobile);dialog.classList.toggle('wide',wide);document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-eyebrow').textContent=eyebrow;
+    dialog.classList.remove('delivery-application-dialog','schedule-mobile-confirm','analysis-team-dialog','analysis-person-dialog','analysis-department-dialog');dialog.classList.toggle('mobile-sheet',currentTab()?.nav==='schedule'&&ctx().mobile);dialog.classList.toggle('wide',wide);document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-eyebrow').textContent=eyebrow;
     dialogSequence++;body.innerHTML=html;dialogSave=onSave;formDirty=false;dialog.showModal();publish();
   }
   const formActions=(save='保存',extra='')=>`<div id="form-error" class="form-error" role="alert" hidden></div><div class="form-actions">${extra}${button('取消','dialog-close')}${button(save,'dialog-save','','primary')}</div>`;
@@ -86,7 +87,21 @@
   }
   const ctx=()=>({state,month,personId,role,scheduleAdmin:scheduleAdmin(),scheduleDateLock:date=>ProjectScheduleAccess.deadlineReason(date,scheduleAdmin()),currentUserId,scheduleCanEdit:scheduleAdmin()||personId===currentUserId,scheduleEditing:currentTab()?.nav==='schedule'&&!!weekInput().editing,page:currentTab()?.nav||'schedule',filters,esc,money,percent,schedulePins:readSchedulePins()[personId]||[],mobile:mobile||matchMedia('(max-width:760px)').matches,weekEditor:currentTab()?.nav==='schedule'?weekInput():null});
   function heading(eyebrow,title,description,actions=''){return `<header class="page-heading"><div><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p>${esc(description)}</p></div><div class="heading-actions">${actions}</div></header>`;}
+  function limitScheduleProjectList(){
+    scheduleListObserver?.disconnect();scheduleListObserver=null;
+    const wrap=content.querySelector('.schedule-weekly .weekly-table-wrap'),table=wrap?.querySelector('.weekly-table');if(!table)return;
+    const rows=[...table.querySelectorAll('tbody tr[data-schedule-project]')];if(rows.length<=4)return;
+    wrap.classList.add('schedule-project-scroll');wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label','工时项目列表，上下滚动查看更多项目');
+    const measure=()=>{
+      if(!wrap.isConnected)return;
+      const height=table.tHead.getBoundingClientRect().height+rows.slice(0,4).reduce((total,row)=>total+row.getBoundingClientRect().height,0)+(table.tFoot?.getBoundingClientRect().height||0);
+      const horizontalBar=wrap.offsetHeight-wrap.clientHeight;
+      wrap.style.maxHeight=Math.ceil(height+horizontalBar+1)+'px';
+    };
+    measure();scheduleListObserver=new ResizeObserver(measure);scheduleListObserver.observe(table);
+  }
   function render(){
+    scheduleListObserver?.disconnect();scheduleListObserver=null;
     const page=currentTab()?.nav;if(page==='schedule'&&!scheduleAdmin()){personId=currentUserId;}
     document.body.classList.toggle('mobile-mode',(mobile||matchMedia('(max-width:760px)').matches)&&currentTab()?.nav==='schedule');document.body.classList.toggle('delivery-page',currentTab()?.nav==='projects');
     document.getElementById('demo-person').innerHTML=options(state.people,personId);
@@ -100,6 +115,7 @@
     else if(page==='finance')content.innerHTML=ProjectFinance.render(ctx());
     else content.innerHTML=ProjectAnalysis.render(ctx());
     if(page==='schedule'&&content.querySelector('.schedule-weekly,.mobile-schedule'))refreshWeek();
+    limitScheduleProjectList();
     const region={schedule:'schedule',finance:'finance','project-analysis':'analysis','person-analysis':'analysis'}[page];if(region)content.querySelector(page==='schedule'?'.schedule-layout':page==='finance'?'section.panel':'.manager-dashboard, .metrics.six')?.setAttribute('data-change',region);
     document.querySelectorAll('#standalone-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
     ProjectAnalysisAI.sync({...ctx(),aiImport:{template:analysisTemplate,preview:analysisImportPreview,confirm:analysisImportConfirm,download:downloadExcel}});publish();if(marksConfigured)marks.refresh();
@@ -519,10 +535,95 @@
     if(employee())throw Error('当前身份不能导出核算数据');
     downloadExcel(file);toast('已按模板导出核算Excel');
   }
+  function openAnalysisDepartmentPicker(){
+    const scope=ProjectAnalysisScope.select(ctx()),treeRoot={name:'',path:'',children:new Map()};
+    scope.departments.forEach(path=>{let node=treeRoot;path.split('/').forEach(name=>{const key=node.path?node.path+'/'+name:name;if(!node.children.has(name))node.children.set(name,{name,path:key,children:new Map()});node=node.children.get(name);});});
+    openDialog('选择部门',`<div id="analysis-department-picker"><input type="search" class="analysis-department-search" aria-label="搜索部门" placeholder="请输入关键字"><div class="analysis-department-tree" aria-label="部门树"></div></div>`,null,false,'');
+    dialog.classList.add('analysis-department-dialog');
+    const picker=body.querySelector('#analysis-department-picker'),search=picker.querySelector('input'),tree=picker.querySelector('.analysis-department-tree');
+    function draw(){
+      const query=search.value.trim().toLocaleLowerCase(),matches=node=>node.path.toLocaleLowerCase().includes(query)||[...node.children.values()].some(matches);
+      const nodeButton=node=>`<button type="button" class="analysis-department-node ${scope.selectedDepartment===node.path?'selected':''}" data-department="${esc(node.path)}" aria-label="选择${esc(node.path)}">${esc(node.name)}</button>`;
+      const render=node=>[...node.children.values()].filter(matches).map(child=>child.children.size?`<details open class="analysis-department-branch"><summary>${nodeButton(child)}</summary><div>${render(child)}</div></details>`:`<div class="analysis-department-leaf">${nodeButton(child)}</div>`).join('');
+      const content=render(treeRoot);tree.innerHTML=`<button type="button" class="analysis-department-node analysis-department-all ${scope.selectedDepartment==='all'?'selected':''}" data-department="all">全部部门</button>`+(content||'<div class="analysis-person-empty">暂无匹配部门</div>');
+    }
+    search.addEventListener('input',draw);tree.addEventListener('click',event=>{const button=event.target.closest('[data-department]');if(!button)return;event.preventDefault();const department=button.dataset.department;closeDialog(true);applyFilter('analysisDepartment',department);});draw();search.focus();
+  }
+  function openAnalysisPersonPicker(target){
+    const field=target.dataset.field,direct=field==='analysisPerson',form=target.closest('form'),input=target.closest('.analysis-person-form-field')?.querySelector('input');
+    const candidates=direct?ProjectAnalysisScope.select(ctx()).collection:state.people.filter(person=>JSON.parse(target.dataset.candidates||'[]').includes(person.name));
+    const people=candidates.map(ProjectConsultants.profile),selected=direct?filters.analysisPerson:input.value,title=direct?'选择人员':'选择'+field;
+    openDialog(title,`<div id="analysis-person-picker"><input type="search" class="analysis-person-search" aria-label="搜索人员" placeholder="输入姓名、工号或部门进行过滤"><div class="analysis-person-tree" role="tree" aria-label="部门人员"></div></div>`,null,false,'');
+    dialog.classList.add('analysis-person-dialog');
+    const picker=body.querySelector('#analysis-person-picker'),tree=picker.querySelector('.analysis-person-tree'),search=picker.querySelector('input');
+    function draw(){
+      const query=search.value.trim().toLocaleLowerCase(),visible=people.filter(person=>[person.name,person.employeeNo,person.department,person.erpUsername].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
+      const root={children:new Map(),people:[]};
+      visible.forEach(person=>{let node=root;String(person.department||'未分配部门').split(/\s*[/／]\s*/).filter(Boolean).forEach(name=>{if(!node.children.has(name))node.children.set(name,{children:new Map(),people:[]});node=node.children.get(name);});node.people.push(person);});
+      const renderNode=node=>[...node.children.entries()].map(([name,child])=>`<details open class="analysis-person-department"><summary>${esc(name)}</summary><div role="group">${renderNode(child)}</div></details>`).join('')+node.people.map(person=>`<button type="button" role="treeitem" aria-selected="${selected===(direct?person.id:person.name)}" class="analysis-person-node ${selected===(direct?person.id:person.name)?'selected':''}" data-person-id="${esc(person.id)}">${esc(person.name)}${person.employeeNo?'（'+esc(person.employeeNo)+'）':''}</button>`).join('');
+      tree.innerHTML=`<button type="button" class="analysis-person-node analysis-person-all ${!selected||selected==='all'?'selected':''}" data-person-id="all">全部人员</button>`+(visible.length?renderNode(root):'<div class="analysis-person-empty">暂无匹配人员</div>');
+    }
+    search.addEventListener('input',draw);
+    tree.addEventListener('click',event=>{const choice=event.target.closest('[data-person-id]');if(!choice)return;
+      const person=people.find(person=>person.id===choice.dataset.personId);closeDialog(true);
+      if(direct)applyFilter('analysisPerson',person?.id||'all');
+      else{input.value=person?.name||'';target.querySelector('span').textContent=person?.name||'全部';filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(form));target.focus({preventScroll:true});}
+    });draw();search.focus();
+  }
+  function openAnalysisTeamPicker(){
+    const scope=ProjectAnalysisScope.select(ctx()),teams=scope.teams.map(name=>({name,code:'-',region:'-'}));
+    let selected=scope.selectedTeam,page=1,size=10,query='',searchBy='name';
+    openDialog('选择团队',`<div id="analysis-team-picker"><form class="analysis-team-search"><label class="analysis-team-region">所属区域 <select aria-label="所属区域"><option>全部区域</option></select></label><div class="analysis-team-query"><select name="searchBy" aria-label="团队搜索字段"><option value="name">团队名称</option><option value="code">团队编号</option></select><input name="query" type="search" placeholder="请输入团队名称" aria-label="团队搜索关键字"><button type="submit" aria-label="搜索团队">⌕</button></div></form><div class="analysis-team-table"><table><thead><tr><th>操作</th><th>团队名称</th><th>团队编号</th><th>所属区域</th></tr></thead><tbody></tbody></table></div><div class="analysis-team-pagination"></div><div class="analysis-team-bottom"><label class="analysis-team-all"><input type="radio" name="analysis-team-choice" value="all">全部团队</label><div class="form-actions">${button('取消','dialog-close')}${button('确定','dialog-save','','primary')}</div></div></div>`,()=>{
+      delete filters['projectLedgerColumn_项目所属团队'];
+      if(filters.projectLedgerSearchDraft)delete filters.projectLedgerSearchDraft['projectLedgerColumn_项目所属团队'];
+      closeDialog(true);applyFilter('analysisTeam',selected);
+    },true,'');
+    dialog.classList.add('analysis-team-dialog');
+    const picker=body.querySelector('#analysis-team-picker'),form=picker.querySelector('form'),tbody=picker.querySelector('tbody'),pagination=picker.querySelector('.analysis-team-pagination'),all=picker.querySelector('input[value="all"]');
+    function draw(){
+      const rows=teams.filter(team=>String(team[searchBy]).toLocaleLowerCase().includes(query.toLocaleLowerCase())),pages=Math.max(1,Math.ceil(rows.length/size));page=Math.min(page,pages);
+      tbody.innerHTML=rows.length?rows.slice((page-1)*size,page*size).map(team=>`<tr class="${selected===team.name?'selected':''}"><td><input type="radio" name="analysis-team-choice" value="${esc(team.name)}" aria-label="选择${esc(team.name)}" ${selected===team.name?'checked':''}></td><td>${esc(team.name)}</td><td>${esc(team.code)}</td><td>${esc(team.region)}</td></tr>`).join(''):'<tr><td colspan="4" class="analysis-team-empty">暂无符合条件的团队</td></tr>';
+      all.checked=selected==='all';
+      pagination.innerHTML=`<span>共 ${rows.length} 条</span><select aria-label="每页条数">${[10,20,50].map(n=>`<option value="${n}" ${size===n?'selected':''}>${n}条/页</option>`).join('')}</select><button type="button" aria-label="上一页" ${page===1?'disabled':''}>‹</button><span class="analysis-team-current">${page}</span><button type="button" aria-label="下一页" ${page===pages?'disabled':''}>›</button>`;
+      pagination.querySelector('select').onchange=event=>{size=Number(event.target.value);page=1;draw();};
+      pagination.querySelector('[aria-label="上一页"]').onclick=()=>{page--;draw();};pagination.querySelector('[aria-label="下一页"]').onclick=()=>{page++;draw();};
+    }
+    form.onsubmit=event=>{event.preventDefault();query=form.elements.query.value.trim();searchBy=form.elements.searchBy.value;page=1;draw();};
+    form.elements.searchBy.onchange=()=>{form.elements.query.placeholder=form.elements.searchBy.value==='code'?'请输入团队编号':'请输入团队名称';};
+    form.elements.query.addEventListener('input',()=>{if(!form.elements.query.value){query='';page=1;draw();}});
+    tbody.onclick=event=>{const row=event.target.closest('tr'),radio=row?.querySelector('input');if(radio){selected=radio.value;draw();}};
+    all.onchange=()=>{selected='all';draw();};draw();
+  }
   function showManagerAlerts(level='all'){const result=ProjectManagementInsights.alertDialog(ctx(),level);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 预警与行动');}
   function showError(error){const el=document.getElementById('form-error'),weekError=content.querySelector('#week-error'),createError=content.querySelector('#delivery-create-error');if(dialog.open&&el){el.textContent=error.message;el.hidden=false;}else if(!dialog.open&&createError){deliveryCreateDraft.error=error.message;createError.textContent=error.message;createError.hidden=false;createError.scrollIntoView({block:'nearest'});}else if(!dialog.open&&weekError){weekError.textContent=error.message;weekError.hidden=false;}else toast(error.message,true);}
   function guard(fn){try{const value=fn();if(value?.catch)value.catch(showError);}catch(error){showError(error);}}
+  function closeProjectStatusFilter(){
+    const popover=content.querySelector('#project-status-popover');if(popover)popover.hidden=true;
+    content.querySelector('[data-action="project-status-open"]')?.setAttribute('aria-expanded','false');
+  }
+  function openProjectStatusFilter(target){
+    const popover=content.querySelector('#project-status-popover');if(!popover)return;
+    if(!popover.hidden){closeProjectStatusFilter();return;}
+    const selected=Array.isArray(filters.projectLedgerStatuses)?filters.projectLedgerStatuses:(filters['projectLedgerColumn_项目状态']?[filters['projectLedgerColumn_项目状态']]:[]);
+    popover.querySelectorAll('input').forEach(input=>input.checked=selected.includes(input.value));
+    popover.hidden=false;target.setAttribute('aria-expanded','true');
+    const rect=target.getBoundingClientRect(),box=popover.getBoundingClientRect();
+    popover.style.left=Math.max(8,Math.min(rect.left-12,innerWidth-box.width-8))+'px';
+    popover.style.top=(rect.bottom+box.height+8<=innerHeight?rect.bottom+8:Math.max(8,rect.top-box.height-8))+'px';
+    popover.querySelector('input')?.focus({preventScroll:true});
+  }
+  function applyProjectStatusFilter(reset=false){
+    const popover=content.querySelector('#project-status-popover'),scroll=content.querySelector('.project-ledger-scroll'),left=scroll?.scrollLeft||0,top=scroll?.scrollTop||0;
+    filters.projectLedgerStatuses=reset?[]:[...popover.querySelectorAll('input:checked')].map(input=>input.value);
+    delete filters['projectLedgerColumn_项目状态'];if(filters.projectLedgerSearchDraft)delete filters.projectLedgerSearchDraft['projectLedgerColumn_项目状态'];
+    render();const next=content.querySelector('.project-ledger-scroll');if(next){next.scrollLeft=left;next.scrollTop=top;}
+    content.querySelector('[data-action="project-status-open"]')?.focus({preventScroll:true});
+  }
+  content.addEventListener('scroll',event=>{if(!event.target.closest?.('#project-status-popover'))closeProjectStatusFilter();},true);
+  window.addEventListener('resize',closeProjectStatusFilter);
+  document.addEventListener('keydown',event=>{const popover=content.querySelector('#project-status-popover');if(event.key==='Escape'&&popover&&!popover.hidden){event.preventDefault();closeProjectStatusFilter();content.querySelector('[data-action="project-status-open"]')?.focus({preventScroll:true});}});
   document.addEventListener('pointerdown',event=>{
+    if(!event.target.closest('#project-status-popover, [data-action="project-status-open"]'))closeProjectStatusFilter();
     body.querySelectorAll('#analysis-import-form [data-import-multi][open]').forEach(menu=>{if(!menu.contains(event.target))menu.open=false;});
   });
   document.addEventListener('click',event=>{
@@ -535,6 +636,10 @@
     guard(()=>{
       if(a==='navigate')navigate(target.dataset.page);
       if(a==='activate')activate(target.dataset.key);
+      if(a==='analysis-team-picker')openAnalysisTeamPicker();
+      if(a==='analysis-person-picker')openAnalysisPersonPicker(target);
+      if(a==='analysis-department-picker')openAnalysisDepartmentPicker();
+      if(a==='analysis-department-clear')applyFilter('analysisDepartment','all');
       if(a==='dialog-close')closeDialog();
       if(a==='dialog-save'){if(!dialogSave)return;const form=body.querySelector('form');if(form?.elements.mode){form.elements.hours.required=form.elements.mode.value!=='time';}if(form&&!form.reportValidity())return;return dialogSave();}
       if(a==='project-detail'&&!mobileSchedule())showProject(target.dataset.id);
@@ -619,6 +724,23 @@
       if(a==='trial')trial();
       if(a==='close-month')monthClose();
       if(a==='reopen-month')monthReopen();
+      if(a==='project-status-open')openProjectStatusFilter(target);
+      if(a==='project-status-apply')applyProjectStatusFilter();
+      if(a==='project-status-reset')applyProjectStatusFilter(true);
+      if(a==='project-ledger-reset'){
+        delete filters.projectLedgerStatuses;
+        Object.keys(filters).filter(key=>key.startsWith('projectLedgerColumn_')).forEach(key=>delete filters[key]);
+        delete filters.projectLedgerSearchDraft;delete filters.projectLedgerSearchBy;render();
+      }
+      if(a==='ledger-sort'){
+        const scope=currentTab()?.nav==='project-analysis'?'project':'person';
+        if(target.dataset.ledger!==scope)return;
+        const key=scope+'LedgerOrder',field=target.dataset.field,current=filters[key],scroll=content.querySelector('.project-ledger-scroll'),left=scroll?.scrollLeft||0,top=scroll?.scrollTop||0;
+        filters[key]=current?.field===field?(current.direction==='asc'?{field,direction:'desc'}:null):{field,direction:'asc'};
+        render();
+        const next=content.querySelector('.project-ledger-scroll');if(next){next.scrollLeft=left;next.scrollTop=top;}
+        const button=[...content.querySelectorAll('[data-action="ledger-sort"]')].find(x=>x.dataset.field===field);button?.focus({preventScroll:true});
+      }
       if(a==='manager-view'){const key=currentTab()?.nav==='project-analysis'?'projectManagerView':'personManagerView';filters[key]=target.dataset.view;render();}
       if(a==='manager-alerts')showManagerAlerts();
       if(a==='manager-diagnose'){const result=ProjectManagementInsights.diagnose(ctx(),target.dataset.id);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 决策诊断');}
@@ -634,11 +756,11 @@
     if(key==='date'&&!value){render();return;}
     if(key==='month'&&!state.months.includes(value)){toast('示例支持 2026-09 至 2026-11',true);render();return;}
     if(key==='month'){month=value;if(!filters.date.startsWith(month))filters.date=state.calendar[month]?.days[0]||month+'-01';}
-    else{filters[key]=value;if(key==='analysisRole')filters.analysisPerson='all';if(key==='analysisTeam')filters.analysisProject='all';if(key==='date'&&value){month=value.slice(0,7);if(!state.months.includes(month)){toast('示例支持 2026-09 至 2026-11，请选择该范围日期',true);month='2026-11';filters.date='2026-11-09';}}}
+    else{filters[key]=value;if(['analysisRole','analysisDepartment'].includes(key))filters.analysisPerson='all';if(key==='analysisTeam')filters.analysisProject='all';if(key==='date'&&value){month=value.slice(0,7);if(!state.months.includes(month)){toast('示例支持 2026-09 至 2026-11，请选择该范围日期',true);month='2026-11';filters.date='2026-11-09';}}}
     render();
   }
   document.addEventListener('change',event=>{
-    const el=event.target;if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
+    const el=event.target;if(el.closest('#project-ledger-search')){filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(el.form));return;}if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
     if(el.closest('#delivery-create-form'))guard(()=>{
       requireFinance();ProjectDeliveryCreate.capture(el.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';
       if(el.name==='orderNo'){ProjectDeliveryCreate.chooseOrder(state,deliveryCreateDraft);render();}
@@ -655,19 +777,28 @@
   });
   document.addEventListener('click',event=>{const el=event.target.closest('button[data-filter]');if(el){event.preventDefault();guard(()=>applyFilter(el.dataset.filter,el.dataset.value));}});
   content.addEventListener('input',event=>{
+    if(event.target.closest('#project-ledger-search')){filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(event.target.form));return;}
     if(event.target.id==='mobile-project-search'){filters.mobileProjectPicker.query=event.target.value;content.querySelector('#mobile-project-results').innerHTML=ProjectScheduleMobile.projectOptions(ctx(),event.target.value);return;}
     if(event.target.closest('#delivery-create-form')){ProjectDeliveryCreate.capture(event.target.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';const error=content.querySelector('#delivery-create-error');if(error)error.hidden=true;refreshDeliveryCreate();publish();return;}
     if(event.target.matches('[data-cell-description]')){setEntryMeta(event.target.dataset.cellDescription,'description',event.target.value);return;}
     if(event.target.matches('[data-week-cell]')){setWeekCell(event.target.dataset.weekCell,event.target.value);content.querySelector('#week-error').hidden=true;refreshWeek();return;}
 
   });
-  content.addEventListener('submit',event=>{if(event.target.id==='delivery-create-form'){event.preventDefault();guard(saveDeliveryProject);}});
+  content.addEventListener('submit',event=>{if(event.target.id==='project-ledger-search'){
+    event.preventDefault();guard(()=>{
+      const values=Object.fromEntries(new FormData(event.target));
+      Object.keys(filters).filter(key=>key.startsWith('projectLedgerColumn_')).forEach(key=>delete filters[key]);
+      for(const [key,value] of Object.entries(values))if(key.startsWith('projectLedgerColumn_'))filters[key]=value;
+      if(['项目名称','项目编号','订单编号','项目类型'].includes(values.searchBy))filters['projectLedgerColumn_'+values.searchBy]=values.query.trim();
+      filters.projectLedgerSearchBy=values.searchBy;filters.projectLedgerSearchDraft=values;render();
+    });return;
+  }if(event.target.id==='delivery-create-form'){event.preventDefault();guard(saveDeliveryProject);}});
   content.addEventListener('keydown',event=>{
     if(!content.querySelector('.schedule-weekly'))return;
     if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();saveWeek();return;}
     if(event.key==='Enter'&&event.target.matches('[data-week-cell]')){event.preventDefault();const inputs=[...content.querySelectorAll('[data-week-cell]:not(:disabled)')],index=inputs.indexOf(event.target),next=inputs[index+(event.shiftKey?-1:1)];if(next){next.focus();next.select();}}
   });
-  const markDirty=event=>{if(event.target.closest('#schedule-logs')||['settings-month','consultant-pay-year'].includes(event.target.id)||event.target.matches('[data-manager-alert-level]'))return;if(body.querySelector('#lobster-history')){chatDirty();return;}formDirty=true;publish();};body.addEventListener('input',markDirty);body.addEventListener('change',markDirty);
+  const markDirty=event=>{if(event.target.closest('#schedule-logs, #analysis-team-picker, #analysis-person-picker, #analysis-department-picker')||['settings-month','consultant-pay-year'].includes(event.target.id)||event.target.matches('[data-manager-alert-level]'))return;if(body.querySelector('#lobster-history')){chatDirty();return;}formDirty=true;publish();};body.addEventListener('input',markDirty);body.addEventListener('change',markDirty);
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialog();});
   // Embedded preview browsers may suppress native leave-page dialogs. Keep refresh
   // nonblocking and retain schedule inputs in this tab until the next reload.

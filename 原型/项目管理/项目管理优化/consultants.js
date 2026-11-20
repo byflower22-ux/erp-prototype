@@ -8,6 +8,10 @@
     {id:'erp-u4',username:'chenshuning',name:'陈书宁',employeeNo:'B32608',status:'在职',department:'博商管理咨询 / 战略咨询部',joined:'2026-08-03',phone:'13800000104',email:'chenshuning@example.com'},
     {id:'erp-u5',username:'songzhiyuan',name:'宋知远',employeeNo:'B32817',status:'在职',department:'博商管理咨询 / 数字化咨询部',joined:'2026-10-12',phone:'13800000105',email:'songzhiyuan@example.com'},
     {id:'erp-u6',username:'shenruoxi',name:'沈若溪',employeeNo:'B30126',status:'离职',department:'博商管理咨询 / 咨询交付部',joined:'2025-05-06',phone:'13800000106',email:'shenruoxi@example.com'}
+    ,...[
+      ['顾清和','B33901','战略咨询部'],['陆承远','B33902','战略咨询部'],['程嘉宁','B33903','组织发展部'],
+      ['苏以棠','B33904','组织发展部'],['江予辰','B33905','数字化咨询部'],['温书禾','B33906','数字化咨询部']
+    ].map(([name,employeeNo,department],i)=>({id:'erp-people-demo-'+(i+1),username:'demo.consultant'+(i+1),name,employeeNo,status:'在职',department:'博商管理咨询 / '+department,joined:'2025-03-03',phone:'1380000020'+(i+1),email:'demo.consultant'+(i+1)+'@example.com'}))
   ].map(Object.freeze));
   const accountFor=person=>accounts.find(x=>person.accountId?x.id===person.accountId:x.legacyPersonId===person.id);
   const accountFields=account=>({accountId:account.id,erpUsername:account.username,name:account.name,employeeNo:account.employeeNo,status:account.status,department:account.department,joined:account.joined,phone:account.phone,email:account.email});

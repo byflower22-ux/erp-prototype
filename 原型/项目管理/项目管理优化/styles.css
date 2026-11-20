@@ -303,3 +303,6 @@ dialog.mobile-sheet #day-time-form .day-work-inputs select{max-width:none}
 .schedule-weekly .weekly-project-heading>.schedule-project-pin.is-pinned{background:#fff0e9;color:#be5d43;border-color:#edc5b4}
 .schedule-weekly .schedule-project-pinned>.weekly-project{background:#fffbf8}
 .schedule-weekly .monthly-table .weekly-project-heading{flex-direction:column;gap:7px}
+
+/* Web work logs show at most four project rows before scrolling. */
+.schedule-weekly .weekly-table-wrap.schedule-project-scroll{overflow:auto;overscroll-behavior-y:contain;scrollbar-width:auto;max-height:650px}.schedule-weekly .schedule-project-scroll .weekly-table thead th{position:sticky;top:0;z-index:4}.schedule-weekly .schedule-project-scroll .weekly-table tfoot th,.schedule-weekly .schedule-project-scroll .weekly-table tfoot td{position:sticky;bottom:0;z-index:3;background:#eef3f9;border-top:1px solid #dce4ef}.schedule-weekly .schedule-project-scroll .monthly-table thead th:first-child,.schedule-weekly .schedule-project-scroll .monthly-table thead th:last-child{z-index:5}.schedule-weekly .schedule-project-scroll .monthly-table tfoot th:first-child,.schedule-weekly .schedule-project-scroll .monthly-table tfoot td:last-child{z-index:4}.schedule-weekly .weekly-table-wrap.schedule-project-scroll:focus-visible{outline:2px solid #adc5e2;outline-offset:-2px}
