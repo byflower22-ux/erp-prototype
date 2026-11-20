@@ -1,0 +1,55 @@
+/* Personnel overview and accounting table use the shared accounting ledger. */
+(function(root){
+  'use strict';
+  const M=root.ProjectModel,U=root.ProjectUI,{esc:e,money:m,percent:p,card,table,badge,button:b,options}=U;
+  const sum=(rows,key)=>rows.reduce((n,r)=>n+Number(r[key]||0),0),hour=n=>n==null?'—':Number(n.toFixed(1))+'h';
+  const inputMissing=r=>(r.missing||[]).filter(x=>!x.includes('无法测算'));
+  function rows(d){return d.rows.map(r=>{
+    const months=r.selected.length,calendarKnown=r.selected.every(x=>x.standardHours>0),actualHours=sum(r.selected,'hours'),standardHours=sum(r.selected,'standardHours');
+    const fixed=r.selected.map(x=>M.fixedPay(d.s,r.id,x.month));
+    const projects=r.contributions.filter(x=>d.s.projects.some(p=>p.id===x.id&&p.startDate.slice(0,7)<=d.month)).map(x=>({...x,hours:r.selected.reduce((n,result)=>n+result.projects.filter(project=>project.projectId===x.id).reduce((total,project)=>total+project.hours,0),0)}));
+    return {...r,months,projects,actualHours,standardHours,calendarKnown,hours:actualHours,elapsedStandard:r.standard,standard:standardHours,util:calendarKnown&&standardHours>0?actualHours/standardHours:null,incomeHour:actualHours>0&&!r.revenueMissing?r.income/actualHours:null,
+      salary:fixed.every(x=>x.known)?sum(fixed,'salary'):null,benefits:fixed.every(x=>x.known)?sum(fixed,'benefits'):null,
+      monthlyNet:months&&r.complete?r.net/months:null,monthlyIncome:months&&!r.revenueMissing?r.income/months:null,
+      netHour:actualHours>0&&r.complete?r.net/actualHours:null,allocated:sum(r.selected,'allocatedSalary'),idleSalary:sum(r.selected,'idleSalary'),
+      idleHours:calendarKnown?r.selected.reduce((n,x)=>n+Math.max(x.standardHours-x.hours,0),0):null,
+      saturation:calendarKnown&&standardHours>0?actualHours/standardHours:null,
+      serviceProjects:projects.filter(x=>x.income>0||x.hours>0).length
+    };
+  });}
+  function profile(d,r){return root.ProjectExcel.personnelInfo(d.s).find(x=>x.id===r.id)||r.entity;}
+  function roles(d,r){return [...new Set(d.members.filter(x=>x.personId===r.id).map(x=>x.role))].join(' / ')||'—';}
+  function missingNotice(d,list){const missing=list.filter(r=>!r.complete);return missing.length?`<div class="notice person-input-missing"><strong>数据缺失 · ${missing.length} 位人员待补齐，相关成本与利润为试算</strong><details><summary>查看缺失明细</summary><ul>${missing.map(r=>`<li><b>${e(r.entity.name)}</b><ul>${r.selected.filter(x=>inputMissing(x).length).map(x=>`<li>${e(x.month)}：${inputMissing(x).map(e).join('；')}</li>`).join('')}</ul></li>`).join('')}</ul></details></div>`:'';}
+  function comparison(d,list,key,title,note,format){
+    const value=r=>key==='income'?(r.revenueMissing?null:r.income):r[key],valid=list.filter(r=>value(r)!==null).sort((a,b)=>value(b)-value(a)),pending=list.filter(r=>value(r)===null),max=Math.max(1,...valid.map(r=>Math.abs(value(r))));
+    return `<section class="panel person-comparison person-${key}"><div class="panel-head"><div><h2>${title}</h2><small>${note}</small></div><span class="person-panel-unit">${key==='margin'?'%':'元'}</span></div><div class="person-comparison-list">${valid.length?valid.map(r=>`<div class="person-comparison-row"><div class="person-comparison-heading"><span>${e(r.entity.name)}</span><b class="${value(r)<0?'negative':'positive'}">${format(value(r))}</b></div><div class="person-comparison-track"><i class="${value(r)<0?'loss':''}" style="width:${Math.abs(value(r))/max*100}%"></i></div><small>${key==='monthlyNet'?`${r.months} 个核算月 · 净利润 ${m(r.net)} 元`:key==='margin'?`净利润 ${m(r.net)} / 交付 ${m(r.income)} 元`:`${r.serviceProjects} 个本期服务项目 · ${hour(r.hours)}`}</small></div>`).join(''):'<div class="person-empty">当前没有可比较的数据</div>'}</div>${pending.length?`<details class="person-pending"><summary>待核算 ${pending.length} 人</summary>${pending.map(r=>`<div><b>${e(r.entity.name)}</b><span>${e(r.missing.join('；')||'确认交付金额为零')}</span></div>`).join('')}</details>`:''}</section>`;
+  }
+  function projectData(d,list){
+    const projects=new Map();
+    list.forEach(r=>r.projects.forEach(x=>{if(!projects.has(x.id))projects.set(x.id,{id:x.id,income:0,hours:0,people:new Set(),missing:false});const project=projects.get(x.id);project.income+=x.income;project.hours+=x.hours;project.people.add(r.id);project.missing||=r.revenueMissing;}));
+    const all=[...projects.values()].sort((a,b)=>b.income-a.income),service=all.filter(x=>x.income>0||x.hours>0);
+    const data=all.map(x=>{const project=d.s.projects.find(p=>p.id===x.id),code=root.ProjectDelivery.info(d.s,project).code;return [`${b(project.name,'project-detail',`data-id="${e(x.id)}"`,'link')}<small>项目编号：${e(code)}</small>`,x.people.size+' 人',m(x.income)+(x.missing?'<small>试算 · 收入比例待补齐</small>':''),hour(x.hours)];});
+    return `<section class="panel person-project-data"><div class="panel-head"><div><h2>项目数据</h2><small>当前人员参与的全部项目 · 项目去重统计</small></div></div><div class="person-project-stats"><div><span>参与项目</span><b>${all.length}<small> 个</small></b></div><div><span>本期服务项目</span><b>${service.length}<small> 个</small></b></div><div><span>人均参与项目</span><b>${list.length?(list.reduce((n,r)=>n+r.projects.length,0)/list.length).toFixed(1):'—'}<small> 个</small></b></div></div><div class="person-project-table">${table(['项目','参与人员','人员交付收入（元）','投入工时'],data)}</div><p class="panel-note">本期有交付收入或项目工时计为服务项目；交付收入为所选人员贡献合计。</p></section>`;
+  }
+  function monthlyTrend(ctx,d){
+    const months=d.s.months.filter(x=>x<=d.month).sort(),trend=months.map(month=>{
+      const sub=root.ProjectManagementInsights.data({...ctx,month,filters:{...ctx.filters,periodMode:'month'}}),list=rows(sub),personMonths=sum(list,'months'),income=sum(list,'income'),net=sum(list,'net'),hours=sum(list,'hours'),labor=sum(list,'labor'),complete=list.every(r=>r.complete),incomeKnown=list.every(r=>!r.revenueMissing),salaryKnown=list.every(r=>!r.salaryMissing);
+      return [e(month),list.length+' 人',incomeKnown&&personMonths?m(income/personMonths):'—',personMonths?(complete?m(net/personMonths):'待补齐'):'—',incomeKnown&&hours>0?m(income/hours):'—',salaryKnown&&incomeKnown&&labor>0?(income/labor).toFixed(2)+' 倍':'—'];
+    });
+    return `<section class="panel person-monthly-trend"><div class="panel-head"><div><h2>人效月度趋势</h2><small>截至所选月 · 各月分别计算</small></div></div>${table(['月份','人数','人均月交付（元）','人均月净利（元）','小时产出（元/h）','投入产出比'],trend)}</section>`;
+  }
+  function capacity(d,list){
+    const hours=sum(list,'hours'),standard=sum(list,'standard'),known=list.every(r=>r.calendarKnown),idle=known?sum(list,'idleHours'):null;
+    return `<section class="panel person-capacity"><div class="panel-head"><div><h2>工时投入与利用</h2><small>实际项目工时 ÷ 考勤标准工时</small></div><span class="person-panel-unit">合计 ${known&&standard>0?p(hours/standard):'—'}</span></div><div class="panel-body">${list.length?list.map(r=>`<div class="efficiency-capacity-row"><div><strong>${e(r.entity.name)}</strong><span>${hour(r.hours)} / ${r.calendarKnown?hour(r.standard):'待补齐'}</span></div><div class="efficiency-capacity-track"><i style="width:${Math.min(100,Math.max(0,(r.util||0)*100))}%"></i></div><div><small>未投入 ${hour(r.idleHours)}</small><b>${p(r.util)}</b></div></div>`).join(''):'<div class="person-empty">暂无人员数据</div>'}<p class="rule-text">合计未投入 ${hour(idle)}，包含内部工作、请假与未填报，不等同可排班工时。历史估算工时保留汇总口径。</p></div></section>`;
+  }
+  function overview(ctx,d){const list=rows(d);return `${missingNotice(d,list)}<div class="person-period-note">${d.cumulative?'累计至 '+e(d.month):e(d.month)+' 当月'} · ${list.length} 位人员 · ${sum(list,'months')} 人月${d.cal.partial?' · 本月未结束，利润含整月固定人工、利用率按整月标准工时':''}</div><div class="person-overview-grid">${comparison(d,list,'monthlyNet','人月利润对比','净利润 ÷ 有效核算月数 · 由高到低',m)}${comparison(d,list,'margin','利润率对比','净利润 ÷ 交付收入 · 由高到低',p)}${comparison(d,list,'income','交付收入对比',d.cumulative?'所选期间交付收入合计':'所选月交付收入',m)}${projectData(d,list)}</div><div class="person-bottom-grid">${monthlyTrend(ctx,d)}${capacity(d,list)}</div>`;}
+  function accounting(ctx,d){
+    const list=rows(d),trial=(r,value)=>m(value)+(r.complete?'':'<small>'+badge('试算','warn')+'</small>'),period=d.cumulative?'累计至 '+d.month:d.month+' 当月';
+    const columns=[['序号',(r,i)=>i+1],['姓名',r=>e(r.entity.name)],['工号',r=>e(profile(d,r).employeeNo||profile(d,r).code||'—')],['部门',r=>e(profile(d,r).department||'—')],['项目角色',r=>e(roles(d,r))],['入职日期',r=>e(r.entity.joined)],['核算期间',()=>e(period)],['核算月数',r=>r.months,true],['参与项目数',r=>r.projects.length,true],['本期服务项目数',r=>r.serviceProjects,true],
+      ['交付收入',r=>r.revenueMissing?trial(r,r.income):m(r.income),true],['项目投入工时',r=>hour(r.hours),true],['交付天数',r=>m(r.actualHours/8),true],['上班天数',r=>r.calendarKnown?m(r.standardHours/8):'待补齐',true],['考勤标准工时',r=>r.calendarKnown?hour(r.standardHours):'待补齐',true],['工时利用率',r=>p(r.util),true],['未投入工时',r=>hour(r.idleHours),true],
+      ['固定工资',r=>m(r.salary),true],['社保公积金',r=>m(r.benefits),true],['固定人工',r=>r.salaryMissing?trial(r,r.costs.salary):m(r.costs.salary),true],['提成',r=>m(r.costs.commission),true],['奖金',r=>m(r.costs.bonus),true],['税费（3.3%）',r=>r.revenueMissing?trial(r,r.costs.tax):m(r.costs.tax),true],['管理费',r=>r.revenueMissing?trial(r,r.costs.management):m(r.costs.management),true],['总成本',r=>trial(r,r.cost),true],['税前利润',r=>trial(r,sum(r.selected,'pretax')),true],['所得税',r=>trial(r,r.tax),true],['净利润',r=>trial(r,r.net),true],['净利润率',r=>p(r.margin),true],['未分摊人工',r=>r.salaryMissing?trial(r,r.idleSalary):m(r.idleSalary),true],['当月盈亏平衡点',r=>m(r.now.breakEven),true],['数据状态',r=>r.complete?badge(d.s.closed[d.month]?'已结快照':'实时试算',d.s.closed[d.month]?'success':'blue'):badge('数据缺失','warn')],['缺失内容',r=>r.missing.map(e).join('；')||'—']];
+    const mode=d.f.personLedgerSort||'name',sorted=list.slice().sort((a,b)=>mode==='income'?b.income-a.income:mode==='net'?b.net-a.net:mode==='margin'?(b.margin??-Infinity)-(a.margin??-Infinity):0);
+    return `${missingNotice(d,list)}<section class="panel project-ledger-panel person-ledger-panel"><div class="panel-head"><div><h2>人员核算总明细表</h2><small>${e(period)} · ${list.length} 位人员 · 金额单位：元 · 向右滚动查看全部字段</small></div><div class="manager-table-controls"><select data-filter="personLedgerSort" aria-label="人员明细排序">${options([{id:'name',name:'按人员顺序'},{id:'income',name:'按交付收入'},{id:'net',name:'按净利润'},{id:'margin',name:'按利润率'}],mode)}</select></div></div><div class="project-ledger-scroll" tabindex="0" role="region" aria-label="人员核算总明细表，可横向滚动"><table class="project-ledger person-ledger"><thead><tr><th colspan="10">人员与项目</th><th colspan="7">交付与投入</th><th colspan="12">成本与利润 · 元 / %</th><th colspan="2">其他核算指标</th><th colspan="2">数据完整性</th></tr><tr>${columns.map(([label,,num])=>`<th scope="col"${num?' class="num"':''}>${e(label)}</th>`).join('')}</tr></thead><tbody>${sorted.length?sorted.map((r,i)=>`<tr>${columns.map(([,value,num])=>`<td${num?' class="num"':''}>${value(r,i)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}">${U.empty('暂无符合条件的人员')}</td></tr>`}</tbody></table></div><p class="panel-note">工时利用率＝项目实际工时÷考勤标准工时；交付天数、上班天数均按8小时折算。盈亏平衡点取所选当月。缺输入的金额标记试算。</p></section>`;
+  }
+  root.PersonEfficiencyViews={overview,accounting,rows};
+})(window);

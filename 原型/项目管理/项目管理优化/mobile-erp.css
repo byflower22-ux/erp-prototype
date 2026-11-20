@@ -1,0 +1,118 @@
+/* Align the schedule and project picker with the existing ERP mobile app. */
+body.mobile-mode{background:#f3f5fa;color:#29313f}
+.mobile-mode .demo-tools{display:none}
+.mobile-mode main{padding:0 0 100px;max-width:480px}
+.mobile-mode .mobile-schedule,.mobile-mode .ms-project-picker{--mobile-red:#d5393b;--mobile-action:#ed2939;--mobile-text:#29313f;--mobile-muted:#9099aa}
+.ms-native-header{background:var(--mobile-red);color:#fff;margin:0;width:100%}
+.ms-status{height:48px;display:flex;align-items:center;justify-content:space-between;padding:9px 30px 0;font-size:17px;font-weight:600;line-height:1}
+.ms-status>span{display:flex;align-items:center;gap:6px}
+.ms-status svg{width:15px;height:15px}
+.ms-status .ms-signal{width:23px;height:17px}
+.ms-status>span:last-child{font-size:15px;font-weight:500}
+.ms-battery{position:relative;display:block;background:#48c065;border-radius:5px;padding:3px 7px 3px 4px;font-size:12px;font-style:normal;font-weight:700}
+.ms-battery:after{content:'';position:absolute;right:-3px;top:5px;width:2px;height:8px;background:#ffffff75;border-radius:0 2px 2px 0}
+.ms-native-nav{height:52px;display:grid;grid-template-columns:58px 1fr 58px;align-items:center}
+.ms-native-nav h1{margin:0;text-align:center;font-size:19px;font-weight:600;color:#fff;line-height:1.4}
+.ms-native-nav button{display:grid;place-items:center;width:52px;min-height:48px;padding:10px 16px;border:0;border-radius:0;background:transparent;color:#fff;cursor:pointer}
+.ms-native-nav button svg{width:23px;height:26px}
+.ms-native-nav button:focus-visible{outline:2px solid #fff;outline-offset:-5px}
+.ms-person-line{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#fff;font-size:13px;border-bottom:1px solid #eef0f4;color:var(--mobile-muted)}
+.ms-person-line .schedule-current-person{font-size:14px;color:var(--mobile-text);font-weight:400}
+.ms-person-line .badge{margin-left:auto}
+.mobile-schedule .ms-view-tabs{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:0;margin:0 0 12px;background:#fff;border:0;border-radius:0}
+.mobile-schedule .ms-view-tabs button{position:relative;height:48px;border:0;background:transparent;color:#7f899b;font-size:15px;font-weight:400;border-radius:0;box-shadow:none}
+.mobile-schedule .ms-view-tabs button.active{color:var(--mobile-action);font-weight:500}
+.mobile-schedule .ms-view-tabs button.active:after{content:'';position:absolute;bottom:0;left:30%;right:30%;height:2px;background:var(--mobile-action);border-radius:1px}
+.mobile-schedule .ms-calendar{margin:0 12px 16px;padding:12px;border:1px solid #e1e5ed;border-radius:9px;background:#fff;box-shadow:none}
+.mobile-schedule .ms-period-switch{background:#f4f5f8;border:0;border-radius:5px;padding:3px}
+.mobile-schedule .ms-period-switch button{color:#8b94a5;border-radius:4px;font-size:13px}
+.mobile-schedule .ms-period-switch button.selected{background:#fff;color:var(--mobile-action);box-shadow:0 1px 3px #29313f0a}
+.mobile-schedule .ms-period-mode>.btn{color:var(--mobile-action);font-size:13px}
+.mobile-schedule .ms-period-nav{margin:12px 0}
+.mobile-schedule .ms-period-nav strong{color:var(--mobile-text);font-size:15px;font-weight:500}
+.mobile-schedule .ms-period-nav>.btn{background:#fff;color:#8993a5;border-color:#e4e7ed;border-radius:4px}
+.mobile-schedule .ms-date{border:1px solid transparent;border-radius:6px;background:#fff;color:#343d4d;box-shadow:none}
+.mobile-schedule .ms-date>small,.mobile-schedule .ms-date>span{color:#969eae}
+.mobile-schedule .ms-date.selected{background:#fff0f1;border-color:#f7d2d6;color:var(--mobile-action)}
+.mobile-schedule .ms-date.selected>small,.mobile-schedule .ms-date.selected>span{color:#df6370}
+.mobile-schedule .ms-date.off{background:#f7f8fa;color:#b9bfcb}
+.mobile-schedule .ms-entry-toolbar{margin:0;padding:3px 20px 10px;align-items:center}
+.mobile-schedule .ms-entry-toolbar h2{color:var(--mobile-text);font-size:16px;font-weight:600;border-left:3px solid var(--mobile-action);padding-left:9px}
+.mobile-schedule .ms-entry-toolbar h2 small{color:#929cad;font-weight:400}
+.mobile-schedule .ms-entry-toolbar>div>span{padding-left:12px;font-size:12px;color:#9aa3b3}
+.mobile-schedule .ms-entry-toolbar>div>span>b{color:#606b7c;font-weight:400}
+.mobile-schedule .ms-day-notice{margin:0 12px 12px;border-radius:5px}
+.mobile-schedule .ms-project{border:0;border-radius:0;margin:0 0 12px;box-shadow:none}
+.mobile-schedule .ms-record>header.ms-record-project{padding:16px 20px;gap:8px}
+.mobile-schedule .ms-project-field{gap:8px}
+.mobile-schedule .ms-project-field>span{font-size:13px;color:#8792a5}
+.mobile-schedule .ms-project-trigger{padding:0;min-height:36px;border:0;border-radius:0;background:#fff;color:var(--mobile-text);font-size:16px;font-weight:400}
+.mobile-schedule .ms-project-trigger.is-empty{color:#a2a9b6}
+.mobile-schedule .ms-project-trigger>span:last-child{color:#989faa;font-size:24px;font-weight:400}
+.mobile-schedule .ms-project-trigger:focus-visible{outline-color:#eeaab0}
+.mobile-schedule .ms-project-field .ms-project-code{color:#929bab;font-size:12px}
+.mobile-schedule .ms-record-meta small{color:#929bab}
+.mobile-schedule .schedule-project-status{border:0;background:#edf0f4;color:#8c95a3;border-radius:12px;font-size:11px;line-height:22px;padding:0 9px}
+.mobile-schedule .schedule-project-status.active{background:#e9f5ef;color:#60957b}
+.mobile-schedule .schedule-project-status.pending{background:#eee;color:#999}
+.mobile-schedule .ms-remove-record{color:#a0a6b1;margin-top:14px;min-width:34px;width:34px}
+.mobile-schedule .ms-entry{padding:16px 20px;gap:12px;border-top:1px solid #e8ebf0}
+.mobile-schedule .ms-stepper{background:#f7f8fa;border:1px solid #e2e5ec;border-radius:6px;padding:4px}
+.mobile-schedule .ms-stepper>button{border-radius:4px;box-shadow:none;color:#6f7b8e;font-size:23px}
+.mobile-schedule .ms-stepper input[data-week-cell]{color:#29313f;font-weight:500;font-size:29px}
+.mobile-schedule .ms-stepper>label>span{color:#919bad}
+.mobile-schedule .ms-stepper:focus-within{border-color:#f1aab1;box-shadow:0 0 0 2px #fff0f1}
+.mobile-schedule .ms-hour-presets>button{border-radius:4px;color:#838fa2;border-color:#e0e4ec;min-height:40px}
+.mobile-schedule .ms-hour-presets>button.selected{color:var(--mobile-action);background:#fff3f4;border-color:#f2bfc4}
+.mobile-schedule .ms-activities>button{border-radius:5px;color:#838fa2;border-color:#e0e4ec;background:#fff;min-height:44px}
+.mobile-schedule .ms-activities>button.selected{color:var(--mobile-action);background:#fff2f3;border-color:#f1b8c0;font-weight:500}
+.mobile-schedule .ms-entry input.ms-description{background:#fff;border-color:#e0e4ec;color:var(--mobile-text);border-radius:4px}
+.mobile-schedule .ms-entry input.ms-description::placeholder{color:#a6adba}
+.mobile-schedule .ms-changed .ms-stepper{background:#fffafb;border-color:#e9c0c5}
+.mobile-schedule .ms-continue-add{width:calc(100% - 24px);margin:0 12px 16px;border:1px solid #e0e4ec;border-radius:5px;background:#fff;color:#7c8799}
+.mobile-schedule .ms-savebar{box-shadow:none;background:#fff;border-color:#e4e7ed;padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.mobile-schedule .ms-savebar strong{color:#29313f;font-size:24px;font-weight:500}
+.mobile-schedule .ms-savebar>div>span,.mobile-schedule #week-save-status{color:#969eac}
+.mobile-schedule .ms-savebar>.primary{background:var(--mobile-action);border-radius:7px;font-weight:500;min-height:46px}
+.mobile-schedule .ms-report{padding:0 12px}
+.mobile-schedule .ms-report-heading h2{border-left:3px solid var(--mobile-action);padding-left:9px;color:var(--mobile-text)}
+.mobile-schedule .weekly-metric{border:1px solid #e3e6ed;border-radius:6px;padding:14px;box-shadow:none}
+.mobile-schedule .weekly-metric>span{color:#8e98a9}
+.mobile-schedule .weekly-metric strong{color:var(--mobile-text);font-size:26px;font-weight:500}
+.mobile-schedule .week-charts>section{border:1px solid #e3e6ed;border-radius:6px;box-shadow:none}
+.mobile-schedule .week-charts h3{border-left:3px solid var(--mobile-action);padding-left:9px;color:var(--mobile-text)}
+.mobile-schedule .ms-error{margin:12px}
+.ms-project-picker{background:#fff;min-height:100dvh}
+.ms-project-picker .ms-picker-search{padding:12px 14px;background:#f3f5fa}
+.ms-project-picker .ms-picker-search label{border:1px solid #e4e7ee;background:#fff;border-radius:5px;color:#979faf}
+.ms-project-picker .ms-picker-search input{height:42px;font-size:14px;color:var(--mobile-text)}
+.ms-project-picker .ms-picker-search input::placeholder{color:#a3aab7}
+.ms-project-picker .ms-picker-search label:focus-within{border-color:#f1bbc1;box-shadow:none}
+.ms-project-picker .ms-project-options{gap:0;padding:0 15px;background:#fff}
+.ms-project-picker .ms-project-option{border:0;border-bottom:1px solid #e4e6eb;border-radius:0;background:#fff;padding:18px 0;align-items:flex-start;min-height:130px}
+.ms-project-picker .ms-project-option.selected{background:#fff}
+.ms-project-picker .ms-project-option-info{gap:12px}
+.ms-project-picker .ms-project-option strong{color:#303743;font-size:16px;font-weight:400}
+.ms-project-picker .ms-project-option-info>small{color:#8c95a3;font-size:13px}
+.ms-project-picker .ms-record-meta small{color:#939ba9;font-size:12px}
+.ms-project-picker .ms-project-option-check{flex:none;width:23px;height:23px;display:grid;place-items:center;border:1px solid #d7dbe1;border-radius:50%;font-size:0;color:transparent;margin:1px 0 0 8px}
+.ms-project-picker .ms-project-option.selected .ms-project-option-check{color:#fff;background:var(--mobile-action);border-color:var(--mobile-action);font-size:15px}
+.ms-project-picker .schedule-project-status{border:0;border-radius:12px;line-height:23px;padding:0 10px;background:#ddd;color:#fff}
+.ms-project-picker .schedule-project-status.active{background:#93b3a2}
+.ms-project-picker .ms-project-empty{color:#959eac}
+
+/* Mobile confirmation follows the ERP app's centered two-button alert. */
+dialog.schedule-mobile-confirm{position:fixed;inset:0;width:calc(100% - 60px);max-width:330px;max-height:calc(100dvh - 60px);margin:auto;padding:0;border:0;border-radius:8px;background:#fff;box-shadow:none;overflow:auto}
+dialog.schedule-mobile-confirm::before{display:none}
+dialog.schedule-mobile-confirm::backdrop{background:rgba(0,0,0,.5);backdrop-filter:none}
+.schedule-mobile-confirm .dialog-heading{display:block;padding:21px 24px 0;border:0;background:#fff}
+.schedule-mobile-confirm .dialog-heading small,.schedule-mobile-confirm .dialog-heading>.icon-btn{display:none}
+.schedule-mobile-confirm .dialog-heading h2{margin:0;font-size:17px;font-weight:500;color:#222;text-align:center;line-height:1.5}
+.schedule-mobile-confirm #dialog-body{padding:0}
+.schedule-mobile-confirm .schedule-leave-message{margin:0;padding:15px 26px 20px;color:#333;font-size:14px;line-height:1.6}
+.mobile-mode .schedule-mobile-confirm .schedule-leave-actions{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid #f0f0f0}
+.mobile-mode .schedule-mobile-confirm .schedule-leave-actions .btn{width:100%;min-height:54px;margin:0;padding:14px 6px;border:0;border-radius:0;background:#fff;color:#666;font-size:16px;font-weight:400;line-height:1.5;box-shadow:none}
+.mobile-mode .schedule-mobile-confirm .schedule-leave-actions #schedule-leave-discard{border-left:1px solid #f0f0f0;color:#e93d45}
+.mobile-mode .schedule-mobile-confirm .schedule-leave-actions .btn:active{background:#f7f7f7}
+
+.mobile-schedule .ms-edit-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;margin:0 12px 12px;border:1px solid #f3d6da;border-radius:5px;background:#fff4f5;color:#b87a83;font-size:12px}.ms-edit-notice b{font-size:13px;font-weight:500;color:#dd4e5e}.mobile-schedule .ms-savebar>div:first-child{min-width:0;flex:1}.mobile-schedule .ms-savebar>.schedule-edit-actions{display:flex;flex-direction:row;gap:8px;flex:none}.mobile-schedule .ms-savebar .schedule-edit-actions .btn{min-height:46px;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:500}.mobile-schedule .ms-savebar .schedule-edit-actions .primary{border:0;background:var(--mobile-action);color:#fff;min-width:118px}.mobile-schedule .ms-savebar .schedule-edit-actions .primary:disabled{background:#e9edf3;color:#a3afc0}.mobile-schedule .ms-savebar .schedule-cancel{border:1px solid #dce1e9;background:#fff;color:#657184;min-width:58px}.mobile-schedule.schedule-is-editing .ms-savebar{border-top:2px solid #efbcc4;background:#fff}.mobile-schedule #week-save-status.has-unsaved{color:#e24353;font-weight:500}.ms-read-record{background:#fff;margin:0 0 12px}.ms-read-record>header{padding:16px 20px;border-bottom:1px solid #e8ebf0}.ms-read-record>header>strong{font-size:16px;font-weight:400;color:#29313f;line-height:1.6;display:block}.ms-read-record>header>small{font-size:12px;color:#929bab;display:block;margin-top:7px}.ms-read-entries{padding:0 20px}.ms-read-entries>div{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:15px 0}.ms-read-entries>div+div{border-top:1px solid #eff1f5}.ms-read-entries>div>span{min-width:0;flex:1}.ms-read-entries b{font-size:14px;font-weight:400;color:#738097;line-height:1.7}.ms-read-entries>div>span>small{display:block;color:#a0a8b6;font-size:12px;line-height:1.7;margin-top:3px;overflow-wrap:anywhere}.ms-read-entries>div>strong{font-size:22px;font-weight:500;color:#29313f;white-space:nowrap}.ms-read-entries>div>strong small{font-size:12px;font-weight:400;color:#969eac}.ms-view-empty{text-align:center;margin:0 12px 16px;padding:32px 12px;background:#fff;border-radius:6px}.ms-view-empty>b{display:block;font-weight:400;color:#8792a5;font-size:14px}.ms-view-empty>span{display:block;margin-top:10px;color:#b0b7c3;font-size:12px}.mobile-mode .schedule-leave-actions{display:flex;flex-direction:column;gap:10px}.mobile-mode .schedule-leave-actions .btn{min-height:46px;width:100%;border-radius:6px}.mobile-mode .schedule-leave-message{margin-bottom:20px;font-size:14px}

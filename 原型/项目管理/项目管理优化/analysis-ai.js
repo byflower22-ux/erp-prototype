@@ -5,13 +5,10 @@
   const costNames={salary:'人工成本',commission:'提成',bonus:'人员奖金',tax:'税费',management:'管理费',business:'业务费用',travel:'差旅',accountManager:'客户经理提成',exception:'例外费用',yearBonus:'年终奖分摊',fixed:'固定分摊'};
   const add=(rows,key)=>rows.reduce((n,r)=>n+Number(r[key]||0),0),clean=name=>name.replace('（示例）',''),format=(key,n)=>n==null?'—':['margin','cashRate','util','concentration'].includes(key)?p(n):key==='roi'?n.toFixed(2)+' 倍':m(n);
   const table=(headers,rows)=>`<div class="aa-table-wrap"><table><thead><tr>${headers.map(x=>'<th>'+e(x)+'</th>').join('')}</tr></thead><tbody>${rows.map(r=>'<tr>'+r.map(x=>'<td>'+e(x)+'</td>').join('')+'</tr>').join('')}</tbody></table></div>`;
-  function pageData(ctx){
-    const d=root.ProjectManagementInsights.data(ctx),view=d.project?ctx.filters.projectManagerView:ctx.filters.personManagerView;
-    if(ctx.filters.managerOnlyRisk==='risk'&&(!view||view==='overview'||view==='alerts')){const ids=new Set(root.ProjectManagementInsights.warnings(d).map(a=>a.entityId));d.rows=d.rows.filter(r=>ids.has(r.id));d.entities=d.entities.filter(r=>ids.has(r.id));}return d;
-  }
+  function pageData(ctx){const d=root.ProjectManagementInsights.data(ctx);if(!d.project)d.rows=root.PersonEfficiencyViews.rows(d);return d;}
   let host,current,pageKey='',painted=null;
   const session=()=>{if(!sessions.has(pageKey))sessions.set(pageKey,{open:false,messages:[],draft:'',spec:null,basis:'',revision:0,pending:null,busy:false,token:0});return sessions.get(pageKey);};
-  function scope(ctx,d){const view=d.project?ctx.filters.projectManagerView:ctx.filters.personManagerView;return {title:d.project?'项目分析':'项目人效分析',period:(d.cumulative?'累计至 ':'')+d.month+(d.cumulative?'':' · 当月'),range:d.project?[d.selectedTeam==='all'?'全部团队':d.selectedTeam,d.selection==='all'?'全部项目':clean(d.entities[0]?.name||'无匹配项目')].join(' · '):[d.selectedRole==='all'?'全部角色':d.selectedRole,d.selection==='all'?'全部人员':d.entities[0]?.name||'无匹配人员'].join(' · '),view:view==='accounting'?'核算明细':view==='efficiency'?'人效明细':'管理驾驶舱'};}
+  function scope(ctx,d){const view=d.project?ctx.filters.projectManagerView:ctx.filters.personManagerView;return {title:d.project?'项目分析':'项目人效分析',period:(d.cumulative?'累计至 ':'')+d.month+(d.cumulative?'':' · 当月'),range:d.project?[d.selectedTeam==='all'?'全部团队':d.selectedTeam,d.selection==='all'?'全部项目':clean(d.entities[0]?.name||'无匹配项目')].join(' · '):[d.selectedRole==='all'?'全部角色':d.selectedRole,d.selection==='all'?'全部人员':d.entities[0]?.name||'无匹配人员'].join(' · '),view:view==='accounting'?'核算明细':d.project?'项目概览':'人效分析概览'};}
   const fingerprint=(ctx,d)=>JSON.stringify([ctx.page,ctx.month,ctx.state.revision,d.cumulative,d.selectedRole,d.selectedTeam,d.selection,d.entities.map(x=>x.id)]);
   function interpret(text,previous,d){
     const follow=/^(再|继续|那|这些|它们|其中|只看|只保留|改为|换成|按|把|为什么|给.*建议|与上月)/.test(text),spec=follow&&previous?{...previous,conditions:[...previous.conditions]}:{topic:'overview',metric:d.project?'income':'incomeHour',asc:false,limit:5,conditions:[],ids:null};

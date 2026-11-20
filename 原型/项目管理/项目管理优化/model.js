@@ -6,6 +6,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const RULES = Object.freeze({ruleVersion:'ERP-I005-demo-v1',projectIncomeTax:0.15,businessTax:0.033,personalManagement:0.2,hoursStep:0.5,dailyHours:8,personalBreakEvenFormula:'(固定人工+提成+奖金)÷[1−(税费+管理费)÷当月交付金额]'});
+  const projectStatus = project => project.status==='筹备中'?'未开始':project.status;
   const copy = value => JSON.parse(JSON.stringify(value));
   const round = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
   const sum = (rows, field = 'amount') => round(rows.reduce((n, r) => n + Number(r[field] || 0), 0));
@@ -14,8 +15,8 @@
   const amountOK = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
   const at = (rows, month, key, value) => rows.filter(r => r.month === month && (!key || r[key] === value));
   function version(state, expected) { if (state.revision !== expected) fail('数据版本已变化，请刷新后重试'); }
-  function monthOK(state, month, unlocked = false) {
-    if (!state.months.includes(month)) fail('月份不在可操作期间内');
+  function monthOK(state, month, unlocked = false, allowUnlisted = false) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || (!allowUnlisted && !state.months.includes(month))) fail('月份不在可操作期间内');
     if (unlocked && state.closed[month]) fail(month + ' 已月结，请先反结账');
     if (unlocked) {
       const later = Object.keys(state.closed).filter(m => m > month).sort();
@@ -39,6 +40,22 @@
   function hoursFor(state, personId, projectId, month) {
     return round(state.times.filter(r => r.status === 'submitted' && r.date.slice(0,7) === month && (!personId || r.personId === personId) && (!projectId || r.projectId === projectId)).reduce((n,r)=>n+Number(r.hours),0) + state.historicalTimes.filter(r=>r.month === month && (!personId || r.personId===personId) && (!projectId || r.projectId===projectId)).reduce((n,r)=>n+Number(r.hours),0));
   }
+  function fixedPay(state,personId,month){
+    const basis=state.closed[month]?.inputs||state,p=entity(basis,'people',personId),rows=at(basis.salaries,month,'personId',personId),configured=amountOK(p.fixedSalary)&&amountOK(p.fixedBenefits);
+    if(rows.length){
+      const split=rows.every(r=>amountOK(r.salaryAmount)&&amountOK(r.benefitsAmount)&&Math.abs(r.salaryAmount+r.benefitsAmount-r.amount)<.011);
+      return {salary:split?sum(rows,'salaryAmount'):sum(rows),benefits:split?sum(rows,'benefitsAmount'):0,total:sum(rows),known:true,source:split?'override':'legacy',rows};
+    }
+    return {salary:configured?p.fixedSalary:null,benefits:configured?p.fixedBenefits:null,total:configured?round(p.fixedSalary+p.fixedBenefits):null,known:configured,source:'default',rows:configured?[{id:'fixed-default-'+personId+'-'+month,personId,month,amount:round(p.fixedSalary+p.fixedBenefits),source:'档案默认：固定工资 '+p.fixedSalary+' + 社保公积金 '+p.fixedBenefits}]:[]};
+  }
+  function saveMonthlyFixedPay(state,personId,changes,expectedRevision=state.revision){
+    version(state,expectedRevision);entity(state,'people',personId);const seen=new Set();
+    for(const change of changes){monthOK(state,change.month,true,true);if(seen.has(change.month))fail('月份重复');seen.add(change.month);if(!change.reset&&(!amountOK(change.salary)||!amountOK(change.benefits)))fail('固定工资和社保公积金须为非负金额');}
+    if(!changes.length)return state;
+    const n=next(state,'维护咨询师月度固定成本',{personId,changes});
+    for(const change of changes){n.salaries=n.salaries.filter(r=>r.personId!==personId||r.month!==change.month);if(!change.reset)n.salaries.push({id:'fixed-pay-'+n.revision+'-'+change.month,personId,month:change.month,salaryAmount:round(change.salary),benefitsAmount:round(change.benefits),amount:round(round(change.salary)+round(change.benefits)),source:'咨询师月度固定成本'});}
+    return n;
+  }
   function breakEven(income, fixed, variable, missing) {
     if (income <= 0) { missing.push('当月交付金额为零，无法测算盈亏平衡点'); return null; }
     const denominator = 1 - variable / income;
@@ -60,7 +77,7 @@
     const members = state.members.filter(r=>r.projectId === projectId);
     for (const personId of unique(members.map(r=>r.personId))) {
       const h = hoursFor(state,personId,projectId,month);
-      const salary = at(state.salaries,month,'personId',personId);
+      const salary = fixedPay(state,personId,month).rows;
       if (h && !salary.length) missing.push(entity(state,'people',personId).name+'缺少当月工资');
       if (h && salary.length && calendar && calendar.standardHours > 0) {
         const allocation = round(sum(salary) / calendar.standardHours * h);
@@ -103,7 +120,7 @@
     if(state.closed[month]?.people?.[personId]) return copy(state.closed[month].people[personId]);
     const missing=[],sources=[],calendar=state.calendar[month],standardHours=calendar?.standardHours || 0;
     if(!standardHours) missing.push('缺少'+month+'考勤标准工时');
-    const salaries=at(state.salaries,month,'personId',personId),salary=sum(salaries);
+    const pay=fixedPay(state,personId,month),salaries=pay.rows,salary=sum(salaries);
     if(!salaries.length) missing.push('缺少当月工资');
     const projects=unique(state.members.filter(r=>r.personId===personId).map(r=>r.projectId)).map(projectId=>{
       const income=sum(at(state.delivery,month,'projectId',projectId)),ratios=state.ratios.filter(r=>r.month===month&&r.projectId===projectId&&r.personId===personId);
@@ -116,7 +133,8 @@
     const costs={tax:round(income*RULES.businessTax),salary,commission,bonus,management:round(income*RULES.personalManagement)};
     const totalCost=round(Object.values(costs).reduce((a,b)=>a+b,0)),pretax=round(income-totalCost),tax=round(Math.max(pretax,0)*RULES.projectIncomeTax);
     const reasons=[],be=breakEven(income,round(costs.salary+costs.commission+costs.bonus),round(costs.tax+costs.management),reasons);
-    ['salaries','commissions','bonuses'].forEach(k=>at(state[k],month,'personId',personId).forEach(r=>sources.push(source(r,{salaries:'固定人工',commissions:'人员提成',bonuses:'人员奖金'}[k],k))));
+    salaries.forEach(r=>sources.push(source(r,'固定人工（工资＋社保公积金）','salaries')));
+    ['commissions','bonuses'].forEach(k=>at(state[k],month,'personId',personId).forEach(r=>sources.push(source(r,{commissions:'人员提成',bonuses:'人员奖金'}[k],k))));
     const allocatedSalary=sum(projects,'salary'),hours=hoursFor(state,personId,null,month);
     return {id:personId,month,income,costs,totalCost,pretax,tax,net:round(pretax-tax),margin:income&&!missing.length?(pretax-tax)/income:null,breakEven:missing.length?null:be,hours,days:hours/8,standardHours,saturation:standardHours?hours/standardHours:null,allocatedSalary,idleSalary:round(salary-allocatedSalary),missing:unique(missing.concat(reasons)),sources,projects};
   }
@@ -211,7 +229,7 @@
     try{monthOK(state,month,true);}catch(e){errors.push(e.message);}
     const result=rows.map((r,i)=>{
       const personId=config.person?r.personId:undefined,projectId=config.project?r.projectId:undefined,key=[type,month,projectId||'',personId||''].join('|');
-      const old=state[config.collection].find(x=>x.month===month&&(!config.person||x.personId===personId)&&(!config.project||x.projectId===projectId)&&(!config.category||x.category===config.category));
+      const old=state[config.collection].find(x=>x.month===month&&(!config.person||x.personId===personId)&&(!config.project||x.projectId===projectId)&&(!config.category||x.category===config.category))||(type==='salary'&&state.people.some(p=>p.id===personId)?fixedPay(state,personId,month).rows[0]:undefined);
       const blank=r.value===''||r.value===null||r.value===undefined;
       const item={key,projectId,personId,oldValue:old?old.amount:null,newValue:blank?null:r.value,kind:blank?'skip':old?'update':'new',error:null};
       const reasons=[];
@@ -286,7 +304,7 @@
     return addScheduleExample(next(state,'补充多项目日程示例',{personId:'u2',addedProjects:4}));
   }
   function seed(){
-    const s={revision:1,months:['2026-09','2026-10','2026-11'],projects:[{id:'p1',name:'星澜制造数字化咨询（示例）',type:'管理咨询',status:'进行中',ownerId:'u1',contract:480000,startDate:'2026-09-01',receivable:330000},{id:'p2',name:'青禾零售组织升级（示例）',type:'组织咨询',status:'进行中',ownerId:'u2',contract:300000,startDate:'2026-09-01',receivable:230000},{id:'p3',name:'云岑新项目筹备（示例）',type:'专项咨询',status:'筹备中',ownerId:'u3',contract:180000,startDate:'2026-11-01',receivable:180000}],people:[{id:'u1',name:'林予安',joined:'2024-03-01',role:'项目经理'},{id:'u2',name:'周知行',joined:'2025-01-06',role:'咨询师'},{id:'u3',name:'许映舟',joined:'2026-09-01',role:'咨询师'}],members:[{projectId:'p1',personId:'u1',role:'项目经理'},{projectId:'p1',personId:'u2',role:'咨询师'},{projectId:'p2',personId:'u1',role:'咨询师'},{projectId:'p2',personId:'u2',role:'项目经理'},{projectId:'p2',personId:'u3',role:'咨询师'},{projectId:'p3',personId:'u3',role:'项目经理'}],calendar:{},delivery:[],receipts:[],actualCosts:[],salaries:[],commissions:[],bonuses:[],expenses:[],ratios:[],times:[],historicalTimes:[],batches:[],closed:{},audit:[]};
+    const s={revision:1,months:['2026-09','2026-10','2026-11'],projects:[{id:'p1',team:'博商咨询管理',name:'星澜制造数字化咨询（示例）',type:'管理咨询',status:'进行中',ownerId:'u1',contract:480000,startDate:'2026-09-01',receivable:330000},{id:'p2',name:'青禾零售组织升级（示例）',type:'组织咨询',status:'进行中',ownerId:'u2',contract:300000,startDate:'2026-09-01',receivable:230000},{id:'p3',name:'云岑新项目筹备（示例）',type:'专项咨询',status:'筹备中',ownerId:'u3',contract:180000,startDate:'2026-11-01',receivable:180000}],people:[{id:'u1',name:'林予安',joined:'2024-03-01',role:'项目经理'},{id:'u2',name:'周知行',joined:'2025-01-06',role:'咨询师'},{id:'u3',name:'许映舟',joined:'2026-09-01',role:'咨询师'}],members:[{projectId:'p1',personId:'u1',role:'项目经理'},{projectId:'p1',personId:'u2',role:'咨询师'},{projectId:'p2',personId:'u1',role:'咨询师'},{projectId:'p2',personId:'u2',role:'项目经理'},{projectId:'p2',personId:'u3',role:'咨询师'},{projectId:'p3',personId:'u3',role:'项目经理'}],calendar:{},delivery:[],receipts:[],actualCosts:[],salaries:[],commissions:[],bonuses:[],expenses:[],ratios:[],times:[],historicalTimes:[],batches:[],closed:{},audit:[]};
     let id=0;const add=(key,row)=>s[key].push({id:key+'-'+(++id),...row});
     for(const month of s.months){
       const [year,m]=month.split('-').map(Number),days=[];
@@ -294,7 +312,7 @@
       // 演示日历包含公司安排：11月7日调班，11月6日休息。
       if(month==='2026-11'){days.splice(days.indexOf('2026-11-06'),1);days.push('2026-11-07');days.sort();}
       s.calendar[month]={days,standardHours:days.length*8};
-      for(const p of s.people)if(!(p.id==='u3'&&month==='2026-11'))add('salaries',{personId:p.id,month,amount:{u1:18000,u2:14000,u3:11000}[p.id]});
+      for(const p of s.people)if(!(p.id==='u3'&&month==='2026-11'))add('salaries',{personId:p.id,month,amount:{u1:18000,u2:14000,u3:11000}[p.id],salaryAmount:{u1:15000,u2:12000,u3:9000}[p.id],benefitsAmount:{u1:3000,u2:2000,u3:2000}[p.id]});
       for(const p of s.projects){
         const income=p.id==='p1'?{'2026-09':110000,'2026-10':18000,'2026-11':0}[month]:p.id==='p2'?{'2026-09':50000,'2026-10':70000,'2026-11':90000}[month]:0;
         add('delivery',{projectId:p.id,month,amount:income});add('receipts',{projectId:p.id,month,amount:p.id==='p3'?0:month==='2026-09'?40000:month==='2026-10'?30000:p.id==='p2'?20000:0});
@@ -314,7 +332,8 @@
       add('bonuses',{personId:'u2',month,amount:1200});
     }
     for(let day=2;day<=5;day++)for(const person of s.people){const projectId=person.id==='u3'?'p2':'p1',member=s.members.find(x=>x.projectId===projectId&&x.personId===person.id);add('times',{personId:person.id,projectId,role:member.role,date:'2026-11-0'+day,hours:6,workItemId:day===2?'preparation':day===5?'review':'onsite',activity:day===2?'项目准备':day===5?'后期复盘':'入企服务',description:day===2?'准备访谈提纲':day===5?'整理交付反馈':'现场调研与访谈',start:'09:00',end:'15:00',status:'submitted'});}
+    s.people.forEach(p=>Object.assign(p,{fixedSalary:{u1:15000,u2:12000,u3:9000}[p.id],fixedBenefits:{u1:3000,u2:2000,u3:2000}[p.id]}));
     return addScheduleExample(s);
   }
-  return {round,seed,ensureScheduleExample,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth};
+  return {round,projectStatus,seed,ensureScheduleExample,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay};
 });

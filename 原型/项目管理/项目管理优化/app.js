@@ -3,7 +3,8 @@
   const M=window.ProjectModel,U=window.ProjectUI,{esc,money,percent,button,badge,table,card,options}=U;
   const KEY='erp-project-demo-v1',PIN_KEY='erp-project-schedule-pins-v1',labels={schedule:'我的项目日程',projects:'项目交付单',consultants:'咨询师列表','project-analysis':'项目分析','person-analysis':'项目人效分析'};
   const content=document.getElementById('content'),dialog=document.getElementById('dialog'),body=document.getElementById('dialog-body');
-  let state,lastRaw=null,storageProblem='',tabs=[],active=null,role='finance',personId='u1',month='2026-11',mobile=new URLSearchParams(location.search).get('mobile')==='1'||!ERPClient.hosted&&innerWidth<500,formDirty=false,dialogSave=null,preview=null,timer,dialogSequence=0;
+  const currentUserId='u1';
+  let state,lastRaw=null,storageProblem='',tabs=[],active=null,role='finance',personId='u1',month='2026-11',mobile=new URLSearchParams(location.search).get('mobile')==='1'||!ERPClient.hosted&&innerWidth<500,mobileHome=new URLSearchParams(location.search).get('mobile')==='1',formDirty=false,dialogSave=null,preview=null,timer,dialogSequence=0;
   const filters={date:'2026-11-09',scheduleView:'week',project:'all',query:'',financeTab:'data',dataType:'salaries',analysisProject:'all',analysisPerson:'all',analysisRole:'咨询师',analysisTeam:'all',periodMode:'month',status:'all'};
   const weekInputs=new Map();
   try{
@@ -12,7 +13,7 @@
     if(!state.projects||!state.people||!Number.isInteger(state.revision))throw Error('本地演示数据格式不正确，请重置示例');
   }catch(error){state=M.seed();storageProblem=error.message;}
   if(!storageProblem){
-    const updated=M.ensureScheduleExample(state);
+    const updated=ProjectDeliveryApplications.ensureExample(M.ensureScheduleExample(state));
     if(updated!==state)try{persist(updated);}catch(error){storageProblem=error.message;}
   }
   // 旧版 Demo 的未确认工时不作为实际投入，取消草稿后移除，正式记录保留。
@@ -23,18 +24,25 @@
   }
   document.documentElement.classList.toggle('hosted',ERPClient.hosted);
   document.getElementById('demo-person').innerHTML=options(state.people,personId);
-  document.getElementById('standalone-nav').innerHTML=Object.entries(labels).map(([key,label])=>button(label,'navigate',`data-page="${key}"`)).join('');
+  document.getElementById('standalone-nav').innerHTML=Object.entries(labels).map(([key,label])=>button(label,'navigate',`data-page="${key}"`)).join('')+button('移动端','mobile-entry');
   const toast=(message,error=false)=>{const el=document.getElementById('toast');clearTimeout(timer);el.textContent=message;el.classList.toggle('error',error);el.hidden=false;timer=setTimeout(()=>el.hidden=true,4500);};
   const employee=()=>role==='employee';
+  const mobileSchedule=()=>currentTab()?.nav==='schedule'&&(mobile||matchMedia('(max-width:760px)').matches);
+  const scheduleAdmin=()=>!employee()&&!mobileSchedule();
+  const requireScheduleEdit=()=>{if(!scheduleAdmin()&&personId!==currentUserId)throw Error('项目成员只能维护本人的日程');if(currentTab()?.nav==='schedule'&&!weekInput().editing)throw Error('请先进入工时编辑状态');};
   const requireFinance=()=>{if(role!=='finance')throw Error('当前演示身份没有财务维护权限');};
   const pName=id=>state.projects.find(p=>p.id===id)?.name||id;
   const uName=id=>state.people.find(p=>p.id===id)?.name||id;
   const currentTab=()=>tabs.find(t=>t.key===active);
   let deliveryCreateDraft=null;
-  const tabDirty=t=>(t.key===active&&formDirty)||(t.newProject&&deliveryCreateDraft?.dirty);
+  const tabDirty=t=>(t.key===active&&formDirty)||(t.newProject&&deliveryCreateDraft?.dirty)||(t.nav==='schedule'&&[...weekInputs.values()].some(w=>w.dirty));
   const snapshot=()=>({active,tabs:tabs.map(t=>({...t,dirty:!!tabDirty(t)}))});
   function publish(){ERPClient.publish();document.getElementById('local-tabs').innerHTML=tabs.map(t=>`<button type="button" data-action="activate" data-key="${esc(t.key)}" class="${t.key===active?'current':''}">${esc(t.label)}${tabDirty(t)?' · 未保存':''}</button>`).join('');}
-  function persist(next){
+  function persist(next,recordSchedule=true){
+      if(recordSchedule&&state&&next!==state&&active==='schedule'){
+        const changes=ProjectScheduleAccess.changes(state,next,{id:scheduleAdmin()?'demo-admin':currentUserId,name:scheduleAdmin()?'管理员（演示）':state.people.find(p=>p.id===currentUserId)?.name||'本人',role:scheduleAdmin()?'admin':'self'});
+        if(changes.length){ProjectScheduleAccess.assertDeadline(changes,scheduleAdmin());if(!scheduleAdmin()&&changes.some(row=>row.personId!==currentUserId))throw Error('项目成员只能维护本人的日程');next={...next,scheduleLogs:[...(state.scheduleLogs||[]),...changes]};}
+      }
     try{
       const stored=localStorage.getItem(KEY);
       if(stored!==lastRaw)throw Error('演示数据已在其他窗口更新，请刷新后重试，未覆盖对方修改');
@@ -52,7 +60,7 @@
   }
   function openDialog(title,html,onSave=null,wide=false,eyebrow='项目管理 · ERP-I005'){
     if(dialog.open&&!closeDialog())return;
-    dialog.classList.toggle('mobile-sheet',currentTab()?.nav==='schedule'&&ctx().mobile);dialog.classList.toggle('wide',wide);document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-eyebrow').textContent=eyebrow;
+    dialog.classList.remove('delivery-application-dialog','schedule-mobile-confirm');dialog.classList.toggle('mobile-sheet',currentTab()?.nav==='schedule'&&ctx().mobile);dialog.classList.toggle('wide',wide);document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-eyebrow').textContent=eyebrow;
     dialogSequence++;body.innerHTML=html;dialogSave=onSave;formDirty=false;dialog.showModal();publish();
   }
   const formActions=(save='保存',extra='')=>`<div id="form-error" class="form-error" role="alert" hidden></div><div class="form-actions">${extra}${button('取消','dialog-close')}${button(save,'dialog-save','','primary')}</div>`;
@@ -61,28 +69,32 @@
   const values=()=>Object.fromEntries(new FormData(body.querySelector('form')));
   const todayInMonth=()=>filters.date?.startsWith(month)?filters.date:(state.calendar[month]?.days[0]||month+'-01');
   function navigate(page){
+    if(page!=='schedule'&&!prepareScheduleLeave(()=>navigate(page)))return;
     if(!labels[page])page='schedule';
     if(employee()&&page!=='schedule'){toast('咨询师本人仅可使用自己的项目日程',true);return;}
     if(dialog.open&&!closeDialog())return;
     if(!tabs.some(t=>t.key===page))tabs.push({key:page,label:labels[page],nav:page});
-    active=page;mobile=mobile&&page==='schedule';render();publish();
+    active=page;mobile=mobile&&page==='schedule';mobileHome=false;render();publish();
   }
-  function activate(key){const tab=tabs.find(t=>t.key===key);if(!tab)return;if(dialog.open&&!closeDialog())return;active=key;render();publish();}
+  function activate(key){const tab=tabs.find(t=>t.key===key);if(!tab)return;if(key!==active&&!prepareScheduleLeave(()=>activate(key)))return;if(dialog.open&&!closeDialog())return;active=key;render();publish();}
   function close(key){
+    if(key===active&&!prepareScheduleLeave(()=>close(key)))return false;
     if(key===active&&dialog.open&&!closeDialog())return;
     if(tabs.find(t=>t.key===key)?.newProject){if(deliveryCreateDraft?.dirty&&!confirm('新增项目尚未保存，确定放弃吗？'))return false;deliveryCreateDraft=null;}
     const index=tabs.findIndex(t=>t.key===key);tabs=tabs.filter(t=>t.key!==key);
     if(active===key)active=tabs[Math.max(0,index-1)]?.key||null;render();publish();return true;
   }
-  const ctx=()=>({state,month,personId,role,page:currentTab()?.nav||'schedule',filters,esc,money,percent,schedulePins:readSchedulePins()[personId]||[],mobile:mobile||matchMedia('(max-width:760px)').matches,weekEditor:currentTab()?.nav==='schedule'?weekInput():null});
+  const ctx=()=>({state,month,personId,role,scheduleAdmin:scheduleAdmin(),scheduleDateLock:date=>ProjectScheduleAccess.deadlineReason(date,scheduleAdmin()),currentUserId,scheduleCanEdit:scheduleAdmin()||personId===currentUserId,scheduleEditing:currentTab()?.nav==='schedule'&&!!weekInput().editing,page:currentTab()?.nav||'schedule',filters,esc,money,percent,schedulePins:readSchedulePins()[personId]||[],mobile:mobile||matchMedia('(max-width:760px)').matches,weekEditor:currentTab()?.nav==='schedule'?weekInput():null});
   function heading(eyebrow,title,description,actions=''){return `<header class="page-heading"><div><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p>${esc(description)}</p></div><div class="heading-actions">${actions}</div></header>`;}
   function render(){
+    const page=currentTab()?.nav;if(page==='schedule'&&!scheduleAdmin()){personId=currentUserId;}
     document.body.classList.toggle('mobile-mode',(mobile||matchMedia('(max-width:760px)').matches)&&currentTab()?.nav==='schedule');document.body.classList.toggle('delivery-page',currentTab()?.nav==='projects');
     document.getElementById('demo-person').innerHTML=options(state.people,personId);
-    const page=currentTab()?.nav;content.dataset.erpPage=page||'empty';
+    document.getElementById('identity-wrap').hidden=employee()||page==='schedule';
+    content.dataset.erpPage=page||'empty';
     if(!active)content.innerHTML=U.empty('从左侧菜单打开业务页面');
-    else if(employee()&&page!=='schedule')content.innerHTML=U.empty('当前身份没有该页面权限');
-    else if(page==='schedule')content.innerHTML=ProjectSchedule.render(ctx());
+    else if(employee()&&page!=='schedule'&&!(page==='projects'&&currentTab()?.projectId&&state.members.some(m=>m.projectId===currentTab().projectId&&m.personId===currentUserId)))content.innerHTML=U.empty('当前身份没有该页面权限');
+    else if(page==='schedule')content.innerHTML=mobileHome?ProjectMobileHome.render(ctx()):(ctx().mobile?'':ProjectScheduleAccess.controls(ctx()))+ProjectSchedule.render(ctx());
     else if(page==='projects')content.innerHTML=renderProjects();
     else if(page==='consultants')content.innerHTML=ProjectConsultants.render(ctx());
     else if(page==='finance')content.innerHTML=ProjectFinance.render(ctx());
@@ -94,20 +106,52 @@
   }
   const deliveryFilters={status:'all',searchBy:'项目编号',query:'',start:'2026-05-10',end:'2026-11-09',range:'近半年',type:'',mark:'',team:'',owner:'',company:'',expanded:false};
   function renderProjects(){return currentTab()?.newProject?(role==='finance'?ProjectDeliveryCreate.render(ctx(),deliveryCreateDraft):U.empty('当前身份没有新增项目权限')):currentTab()?.projectId?ProjectDelivery.detail(ctx(),currentTab()):ProjectDelivery.list(ctx(),deliveryFilters);}
-  function showProject(id,selectedMonth=month,section){
-    if(employee())throw Error('当前身份不能查看项目详情');
+  function showProject(id,selectedMonth=month,section='项目交付'){
+    if(!prepareScheduleLeave(()=>showProject(id,selectedMonth,section)))return;
+    if(employee()&&!state.members.some(m=>m.projectId===id&&m.personId===currentUserId))throw Error('只能查看本人参与的项目详情');
     if(!state.projects.some(p=>p.id===id))throw Error('项目不存在');
     if(dialog.open&&!closeDialog())return;
     const key='project-detail:'+id;let tab=tabs.find(t=>t.key===key);
-    if(!tab){tab={key,label:'项目详情',nav:'projects',projectId:id,period:selectedMonth,section:section||'项目成员'};tabs.push(tab);}
+    if(!tab){tab={key,label:'项目详情',nav:'projects',projectId:id,period:selectedMonth,section:section||'项目交付'};tabs.push(tab);}
     else{tab.period=selectedMonth;if(section)tab.section=section;}
     active=key;render();publish();
   }
   function projectExpenses(id,period){const exp=category=>state.expenses.find(x=>x.projectId===id&&x.month===period&&x.category===category)?.amount??0;return {accountManager:exp('accountManager'),yearBonus:exp('yearBonus')};}
+  function applyDelivery(kind){
+    requireFinance();const id=currentTab()?.projectId;if(!id)throw Error('请先选择项目');
+    const revision=state.revision,A=ProjectDeliveryApplications;
+    let readDraft;
+    openDialog(kind+'申请',A.form(state,id,kind),()=>{
+      requireFinance();persist(A.submit(state,id,kind,readDraft(),revision));closeDialog(true);currentTab().deliveryPage=1;render();toast('申请已提交送审，当前状态：审批中');
+    },true,'');
+    if(!body.querySelector('#delivery-application-form'))return;
+    dialog.classList.add('delivery-application-dialog');dialog.scrollTop=0;
+    readDraft=A.bind(body.querySelector('form'),state,id,()=>{formDirty=true;publish();});
+  }
+  function deliveryApplicationDetail(id){
+    const row=ProjectDeliveryApplications.records(state,currentTab().projectId).find(r=>r.id===id);if(!row)throw Error('交付记录不存在');
+    openDialog(row.kind+' · 审批详情',`<dl class="delivery-base">${[['交付审批单号',row.applicationNo],['交付状态',row.status],['申请时间',row.appliedAt],['完成时间',row.completedAt||'—'],['本次交付比例',row.ratio+'%'],['本次交付金额',money(row.amount)+'元'],['项目模块',(row.modules||[]).map(m=>m.name||m).join('、')||'—'],['备注说明',row.note||'—'],['交付团队',row.deliveryTeam||'—']].map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${row.allocations?.length?`<section class="da-allocation"><h3>本次交付收入分配</h3>${ProjectDeliveryApplications.allocationTable(row.allocations)}</section>`:''}<h3>附件</h3><ul>${(row.attachments||[]).map(f=>`<li>${esc(f.name)}</li>`).join('')||'<li class="muted">暂无附件</li>'}</ul><div class="form-actions">${button('关闭','dialog-close')}</div>`,null,true,'项目交付');
+  }
+  function deliveryAllocationDetail(id){
+    const row=ProjectDeliveryApplications.records(state,currentTab().projectId).find(r=>r.id===id);if(!row)throw Error('交付记录不存在');
+    if(!row.allocations?.length)return;
+    openDialog('项目人员收入分配',`<div class="delivery-allocation-summary"><span>交付审批单号：${esc(row.applicationNo)}</span><span>本次交付收入：<b>${money(row.amount)} 元</b></span></div>${row.allocations?.length?ProjectDeliveryApplications.allocationTable(row.allocations):'<div class="empty"><b>该交付记录尚未配置收入分配</b></div>'}<div class="form-actions">${button('关闭','dialog-close')}</div>`,null,true,'项目交付');
+  }
+  function deliveryApplicationNote(id){
+    requireFinance();const projectId=currentTab().projectId,row=ProjectDeliveryApplications.records(state,projectId).find(r=>r.id===id),revision=state.revision;if(!row)throw Error('交付记录不存在');
+    openDialog('备注说明',`<form><label class="field">备注说明<textarea name="note" required maxlength="500" placeholder="请输入备注说明">${esc(row.note||'')}</textarea></label>${formActions('保存')}</form>`,()=>{
+      requireFinance();if(revision!==state.revision)throw Error('数据版本已变化');const note=values().note.trim();if(!note)throw Error('请填写备注说明');const next=structuredClone(state);next[row.collection].find(r=>r.id===id&&r.projectId===projectId).note=note;
+      next.revision++;next.audit.push({action:'维护交付备注',at:new Date().toISOString(),revision:next.revision,detail:{projectId,deliveryId:id}});persist(next);closeDialog(true);render();toast('备注已保存');
+    },false,'项目交付');
+  }
   function editMember(id,pid){
     requireFinance();const period=currentTab().period||month,person=state.people.find(x=>x.id===pid),member=state.members.find(x=>x.personId===pid&&x.projectId===id),revision=state.revision;
-    const ratio=state.ratios.find(x=>x.projectId===id&&x.personId===pid&&x.month===period);
-    openDialog('编辑项目成员 · 收入比例',`<form><div class="form-grid">${inputField('姓名','personName',person.name,'text','readonly')}${inputField('项目角色','memberRole',member.role,'text','readonly')}${inputField('核算月份','period',period,'text','readonly')}${inputField('收入比例（%）','ratio',ratio?Number((ratio.ratio*100).toFixed(4)):'','number','min="0" max="100" step="0.01" required')}</div><p class="rule-text">收入比例按月维护，同一项目当月所有成员合计不能超过100%。保存后同步核算。</p>${formActions('保存')}</form>`,()=>{requireFinance();const v=values(),ratios=state.members.filter(x=>x.projectId===id).map(x=>({personId:x.personId,ratio:x.personId===pid?Number(v.ratio)/100:(state.ratios.find(r=>r.projectId===id&&r.personId===x.personId&&r.month===period)?.ratio??0)}));persist(M.updateSettings(state,id,period,{ratios,expenses:projectExpenses(id,period)},revision));closeDialog(true);render();toast('成员收入比例已保存');});
+    const roles=['项目总监','项目经理','咨询师','辅助交付人'];
+    openDialog('变更项目成员',`<form><div class="form-grid">${inputField('姓名','personName',person.name,'text','readonly')}${fieldSelect('项目角色','memberRole',roles.map(x=>({id:x,name:x})),member.role)}</div>${formActions('保存')}</form>`,()=>{
+      requireFinance();if(revision!==state.revision)throw Error('数据版本已变化');if(state.closed[period]||Object.keys(state.closed).some(m=>m>period))throw Error('已月结，不能变更成员');
+      const v=values();if(!roles.includes(v.memberRole))throw Error('请选择有效项目角色');const next=structuredClone(state);next.members.find(x=>x.personId===pid&&x.projectId===id).role=v.memberRole;
+      next.revision++;next.audit.push({action:'变更项目成员',at:new Date().toISOString(),revision:next.revision,detail:{projectId:id,personId:pid,role:v.memberRole}});persist(next);closeDialog(true);render();toast('项目成员已更新');
+    });
   }
   function editProjectCosts(id){
     requireFinance();const period=currentTab().period||month,expenses=projectExpenses(id,period),revision=state.revision;
@@ -125,19 +169,22 @@
     requireFinance();const form=content.querySelector('#delivery-create-form');if(!form||!form.reportValidity())return;
     ProjectDeliveryCreate.capture(form,deliveryCreateDraft);
     const result=ProjectDeliveryCreate.build(state,deliveryCreateDraft);persist(result.state);
-    deliveryCreateDraft.dirty=false;close('project-create');showProject(result.id,result.period,'项目成员');toast('项目已新增，成员收入比例已保存');
+    deliveryCreateDraft.dirty=false;close('project-create');showProject(result.id,result.period,'项目交付');toast('项目已新增');
   }
   function refreshDeliveryCreate(){
     const form=content.querySelector('#delivery-create-form');if(!form||!deliveryCreateDraft)return;
-    const total=ProjectDeliveryCreate.total(deliveryCreateDraft),el=form.querySelector('[data-create-ratio-total]');el.textContent=total+'%';el.classList.toggle('over',total>100);
-    form.querySelector('[data-create-period]').textContent=deliveryCreateDraft.fields.startDate.slice(0,7)||month;
     form.querySelector('[data-create-note-count]').textContent=deliveryCreateDraft.fields.note.length+' / 500';
     form.querySelector('[data-create-teams]').innerHTML=deliveryCreateDraft.expenseTeams.map(team=>`<span class="dc-team-tag">${esc(team)}</span>`).join('');
   }
   function addDeliveryMember(){
     requireFinance();const tab=currentTab(),id=tab.projectId,period=tab.period||month,revision=state.revision,choices=state.people.filter(p=>!state.members.some(m=>m.projectId===id&&m.personId===p.id));
     if(!choices.length){toast('所有示例人员均已加入本项目');return;}
-    openDialog('新增项目成员',`<form><div class="form-grid">${fieldSelect('姓名','personId',choices,choices[0].id)}${fieldSelect('角色','role',['项目总监','项目经理','咨询师','辅助交付人'].map(x=>({id:x,name:x})),'咨询师')}${inputField('核算月份','period',period,'text','readonly')}${inputField('收入比例（%）','ratio','0','number','min="0" max="100" step="0.01" required')}</div>${formActions('保存成员')}</form>`,()=>{requireFinance();if(revision!==state.revision)throw Error('数据版本已变化');const v=values(),base=structuredClone(state);base.members.push({projectId:id,personId:v.personId,role:v.role});const ratios=base.members.filter(x=>x.projectId===id).map(x=>({personId:x.personId,ratio:x.personId===v.personId?Number(v.ratio)/100:state.ratios.find(r=>r.projectId===id&&r.personId===x.personId&&r.month===period)?.ratio??0}));persist(M.updateSettings(base,id,period,{ratios,expenses:projectExpenses(id,period)},revision));closeDialog(true);render();toast('项目成员已新增');});
+    const roles=['项目总监','项目经理','咨询师','辅助交付人'];
+    openDialog('新增项目成员',`<form><div class="form-grid">${fieldSelect('姓名','personId',choices,choices[0].id)}${fieldSelect('角色','role',roles.map(x=>({id:x,name:x})),'咨询师')}</div>${formActions('保存成员')}</form>`,()=>{
+      requireFinance();if(revision!==state.revision)throw Error('数据版本已变化');if(state.closed[period]||Object.keys(state.closed).some(m=>m>period))throw Error('已月结，不能新增成员');
+      const v=values();if(!choices.some(p=>p.id===v.personId)||!roles.includes(v.role))throw Error('请选择有效成员和角色');const next=structuredClone(state);next.members.push({projectId:id,personId:v.personId,role:v.role});
+      next.revision++;next.audit.push({action:'新增项目成员',at:new Date().toISOString(),revision:next.revision,detail:{projectId:id,personId:v.personId,role:v.role}});persist(next);closeDialog(true);render();toast('项目成员已新增');
+    });
   }
   function exportDelivery(){
     const rows=[['项目编号','订单编号','项目名称','公司名称','负责人','状态','项目金额（元）'],...state.projects.map(p=>{const m=ProjectDelivery.info(state,p);return [m.code,m.order,p.name,m.company,m.owner,p.status,p.contract];})];
@@ -149,13 +196,37 @@
     const usedBy=account=>state.people.find(x=>x.id!==id&&C.accountFor(x)?.id===account.id);
     const accountChoices=`<option value="">请选择 ERP 已有账号</option>`+C.accounts.map(account=>`<option value="${esc(account.id)}" ${current?.id===account.id?'selected':''} ${usedBy(account)?'disabled':''}>${esc(account.name+' / '+account.employeeNo+' / '+account.username)}${usedBy(account)?'（已关联咨询师）':''}</option>`).join('');
     const autoField=(label,name)=>inputField(label,name,current?.[name]||'','text','readonly data-account-field="'+name+'"');
-    openDialog(person?'编辑咨询师':'新增咨询师',`<form id="consultant-account-form"><div class="form-grid"><label class="field wide">关联 ERP 账号 <span class="required-mark">*</span><select id="consultant-account" name="accountId" required ${fixed?'disabled':''}>${accountChoices}</select>${fixed?`<input type="hidden" name="accountId" value="${esc(current.id)}">`:''}<small>预设 ERP 账号 · Demo。一个账号仅能关联一位咨询师。${fixed?'已有项目或核算记录，保留现有账号关联。':''}</small></label></div><section class="consultant-account-info"><div class="consultant-account-caption">ERP 账号信息 <span>选择账号后自动带出，不可手工修改</span></div><div class="form-grid">${autoField('姓名','name')}${autoField('工号','employeeNo')}${autoField('状态','status')}${autoField('所属部门','department')}${autoField('入职日期','joined')}${autoField('手机号','phone')}${autoField('邮箱','email')}${autoField('ERP登录账号','username')}</div></section><div class="form-grid"><label class="field wide">专业方向<input name="expertise" value="${esc(person?.expertise||'')}" placeholder="例如：战略咨询、组织管理、数字化转型" maxlength="150"></label><label class="field wide">备注<textarea name="note" maxlength="500">${esc(person?.note||'')}</textarea></label></div><p class="rule-text">咨询师须关联 ERP 已有账号，基础信息以账号资料为准；本页只维护专业方向和备注。成员收入比例在项目成员中维护。</p>${formActions('保存档案')}</form>`,()=>{
+    openDialog(person?'编辑咨询师':'新增咨询师',`<form id="consultant-account-form"><div class="form-grid"><label class="field wide">关联 ERP 账号 <span class="required-mark">*</span><select id="consultant-account" name="accountId" required ${fixed?'disabled':''}>${accountChoices}</select>${fixed?`<input type="hidden" name="accountId" value="${esc(current.id)}">`:''}<small>预设 ERP 账号 · Demo。一个账号仅能关联一位咨询师。${fixed?'已有项目或核算记录，保留现有账号关联。':''}</small></label></div><section class="consultant-account-info"><div class="consultant-account-caption">ERP 账号信息 <span>选择账号后自动带出，不可手工修改</span></div><div class="form-grid">${autoField('姓名','name')}${autoField('工号','employeeNo')}${autoField('状态','status')}${autoField('所属部门','department')}${autoField('入职日期','joined')}${autoField('手机号','phone')}${autoField('邮箱','email')}${autoField('ERP登录账号','username')}</div></section><section class="consultant-pay-config"><h3>固定成本默认配置</h3><div class="form-grid"><label class="field">月固定工资（元） <span class="required-mark">*</span><input name="fixedSalary" type="number" min="0" step="0.01" required value="${esc(person?.fixedSalary??'')}" placeholder="必填，可填 0"></label><label class="field">月固定社保公积金（元） <span class="required-mark">*</span><input name="fixedBenefits" type="number" min="0" step="0.01" required value="${esc(person?.fixedBenefits??'')}" placeholder="必填，可填 0"></label></div><p class="rule-text">每月默认取此配置，单月调整在“月度固定成本”中维护。</p></section><div class="form-grid"><label class="field wide">专业方向<input name="expertise" value="${esc(person?.expertise||'')}" placeholder="例如：战略咨询、组织管理、数字化转型" maxlength="150"></label><label class="field wide">备注<textarea name="note" maxlength="500">${esc(person?.note||'')}</textarea></label></div><p class="rule-text">基础信息以 ERP 账号为准。</p>${formActions('保存档案')}</form>`,()=>{
       requireFinance();if(state.revision!==revision)throw Error('数据版本已变化，请重新打开档案');const v=values(),account=C.accounts.find(x=>x.id===v.accountId);if(!account)throw Error('请先关联 ERP 已有账号');if(usedBy(account))throw Error('该 ERP 账号已关联其他咨询师，不能重复新增');if(fixed&&account.id!==current.id)throw Error('已有业务记录，请保持原 ERP 账号关联');
-      const next=structuredClone(state),personIdToSave=id||'person-'+crypto.randomUUID(),profile={...person,...C.accountFields(account),id:personIdToSave,role:person?.role||'咨询师',expertise:v.expertise.trim(),note:v.note.trim()};delete profile.code;
+      if([v.fixedSalary,v.fixedBenefits].some(value=>value===''||!Number.isFinite(Number(value))||Number(value)<0))throw Error('固定工资和社保公积金须为非负金额');
+      const next=structuredClone(state),personIdToSave=id||'person-'+crypto.randomUUID(),profile={...person,...C.accountFields(account),id:personIdToSave,role:person?.role||'咨询师',fixedSalary:M.round(v.fixedSalary),fixedBenefits:M.round(v.fixedBenefits),expertise:v.expertise.trim(),note:v.note.trim()};delete profile.code;
       if(person)next.people[next.people.findIndex(x=>x.id===id)]=profile;else next.people.push(profile);
       next.revision++;next.audit.push({id:'audit-'+next.revision,action:person?'编辑咨询师档案':'关联ERP账号新增咨询师',detail:{personId:personIdToSave,accountId:account.id},revision:next.revision,at:new Date().toISOString()});persist(next);closeDialog(true);render();toast(person?'咨询师档案已按 ERP 账号资料更新':'已关联 ERP 账号并新增咨询师');
     },true,'师资与教练管理 · 关联 ERP 账号');
     const select=body.querySelector('#consultant-account');if(select)select.addEventListener('change',()=>{const account=C.accounts.find(x=>x.id===select.value);body.querySelectorAll('[data-account-field]').forEach(input=>{input.value=account?.[input.dataset.accountField]||'';});});
+  }
+  function editConsultantMonthlyPay(id){
+    if(employee())throw Error('当前身份没有固定成本查看权限');
+    const person=state.people.find(p=>p.id===id);if(!person)throw Error('咨询师不存在');
+    const revision=state.revision,drafts=new Map(),canEdit=role==='finance';
+    openDialog(person.name+' · 月度固定成本',ProjectConsultants.monthlyPay(state,id,canEdit,month.slice(0,4)),()=>{
+      requireFinance();const changes=[];
+      for(const [period,entry] of drafts){
+        const pay=M.fixedPay(state,id,period);
+        if(entry.salary===''&&entry.benefits===''&&!pay.known)continue;
+        if(entry.salary===''||entry.benefits==='')throw Error('请填写 '+period+' 的固定工资和社保公积金');
+        const salary=Number(entry.salary),benefits=Number(entry.benefits);
+        if(salary!==pay.salary||benefits!==pay.benefits)changes.push({month:period,salary,benefits});
+      }
+      persist(M.saveMonthlyFixedPay(state,id,changes,revision));closeDialog(true);render();toast(changes.length?'月度固定成本已保存，核算已同步更新':'月度金额未变更');
+    },true,'师资与教练管理 · 固定成本');
+    const form=body.querySelector('#consultant-monthly-pay');if(!form)return;
+    const refresh=period=>{const salary=form.elements.namedItem('salary-'+period),benefits=form.elements.namedItem('benefits-'+period);form.querySelector(`[data-pay-total="${period}"]`).textContent=salary.value===''||benefits.value===''?'待配置':money(M.round(Number(salary.value)+Number(benefits.value)));};
+    form.addEventListener('input',event=>{const period=event.target.dataset.payMonth;if(period){drafts.set(period,{salary:form.elements.namedItem('salary-'+period).value,benefits:form.elements.namedItem('benefits-'+period).value});refresh(period);}});
+    form.querySelector('#consultant-pay-year').addEventListener('change',event=>{
+      form.querySelector('[data-pay-year-table]').innerHTML=ProjectConsultants.monthlyPayTable(state,id,canEdit,event.target.value);
+      for(const [period,entry] of drafts){const salary=form.elements.namedItem('salary-'+period),benefits=form.elements.namedItem('benefits-'+period);if(salary&&benefits){salary.value=entry.salary;benefits.value=entry.benefits;refresh(period);}}
+    });
   }
   function readSchedulePins(){
     try{const value=JSON.parse(localStorage.getItem(PIN_KEY)||'{}');if(!value||typeof value!=='object'||Array.isArray(value))return {};return Object.fromEntries(Object.entries(value).filter(([,ids])=>Array.isArray(ids)).map(([id,ids])=>[id,[...new Set(ids.filter(x=>typeof x==='string'))]]));}catch{return {};}
@@ -166,100 +237,110 @@
     try{localStorage.setItem(PIN_KEY,JSON.stringify(pins));}catch{throw Error('置顶顺序保存失败，请检查浏览器存储后重试');}
     render();const target=[...content.querySelectorAll('[data-action="schedule-project-pin"]')].find(el=>el.dataset.project===projectId);target?.focus({preventScroll:true});target?.closest('tr')?.scrollIntoView({block:'nearest',behavior:'smooth'});
   }
-  function weekKey(){return personId;}
-  function weekInput(){const key=weekKey();if(!weekInputs.has(key))weekInputs.set(key,{values:{},original:{},extra:[],meta:{},slots:{},dirty:false,error:''});return weekInputs.get(key);}
+  function showScheduleLogs(){
+    const context=ctx(),target=scheduleAdmin()?personId:currentUserId,name=state.people.find(p=>p.id===target)?.name||'本人';
+    let filter=ProjectScheduleAccess.defaultRange();
+    openDialog(name+' · 日程操作日志',ProjectScheduleAccess.logs(context,filter),null,true,'项目管理 · 日程');
+    function draw(){
+      body.innerHTML=ProjectScheduleAccess.logs(context,filter);
+      const root=body.querySelector('#schedule-logs');
+      root.querySelector('[data-action="schedule-log-search"]').onclick=()=>{
+        const start=root.querySelector('#schedule-log-start').value,end=root.querySelector('#schedule-log-end').value;
+        if(start&&end&&start>end){const error=root.querySelector('#schedule-log-error');error.textContent='开始时间不能晚于结束时间';error.hidden=false;return;}
+        filter={...filter,start,end,page:1};draw();
+      };
+      root.querySelector('[data-action="schedule-log-reset"]').onclick=()=>{filter=ProjectScheduleAccess.defaultRange();draw();};
+      root.querySelector('#schedule-log-size').onchange=event=>{filter={...filter,size:Number(event.target.value),page:1};draw();};
+      root.querySelectorAll('[data-action="schedule-log-page"]').forEach(button=>button.onclick=()=>{filter={...filter,page:Number(button.dataset.page)};draw();});
+      const jump=()=>{const input=root.querySelector('#schedule-log-jump');if(!input.reportValidity())return;filter={...filter,page:Number(input.value)};draw();};
+      root.querySelector('[data-action="schedule-log-jump"]').onclick=jump;
+      root.querySelector('#schedule-log-jump').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();jump();}};
+    }
+    draw();
+  }
+  function switchSchedulePerson(value){
+    if(value!==personId&&!prepareScheduleLeave(()=>switchSchedulePerson(value))){const select=content.querySelector('#schedule-access-person');if(select)select.value=personId;return;}
+    if(!scheduleAdmin())throw Error('项目成员只能查看自己的日程');
+    if(dialog.open&&!closeDialog())return;
+    if(!state.people.some(p=>p.id===value))throw Error('人员不存在');
+    personId=value;render();
+  }
+  function switchDemoRole(value){
+    if(!prepareScheduleLeave(()=>switchDemoRole(value))){document.getElementById('demo-role').value=role;return;}
+    if(dialog.open&&!closeDialog()){document.getElementById('demo-role').value=role;return;}
+    role=value;document.getElementById('demo-role').value=role;
+    if(employee()){personId=currentUserId;tabs=tabs.filter(t=>t.nav==='schedule');active=tabs[0]?.key||null;navigate('schedule');}else render();
+  }
+  function weekKey(){return (scheduleAdmin()?'admin:':'self:')+personId;}
+  function weekInput(){const key=weekKey();if(!weekInputs.has(key))weekInputs.set(key,{values:{},original:{},extra:[],meta:{},slots:{},dirty:false,editing:false,error:''});const w=weekInputs.get(key);if(w.editing===undefined)w.editing=!!w.dirty;return w;}
+  function beginScheduleEdit(){
+    const w=weekInput();w.editing=true;requireScheduleEdit();filters.mobileScheduleTab='entry';render();
+    content.querySelector('[data-week-cell]:not(:disabled)')?.focus({preventScroll:true});
+  }
+  function discardScheduleEdit(){
+    const w=weekInput(),dates=ProjectSchedule.weekData(ctx()).dates;
+    for(const map of [w.values,w.original,w.meta,w.slots])for(const key of Object.keys(map))if(dates.includes(JSON.parse(key)[2]))delete map[key];
+    for(const date of dates)if(w.mobileRows)delete w.mobileRows[date];
+    w.editing=false;w.error='';filters.mobileProjectPicker=null;render();
+  }
+  function prepareScheduleLeave(proceed){
+    if(currentTab()?.nav!=='schedule'||mobileHome||!weekInput().editing)return true;
+    const d=ProjectSchedule.weekData(ctx());
+    if(!d.changes.length){discardScheduleEdit();return true;}
+    openDialog('工时尚未保存',`<p class="schedule-leave-message">有 ${d.changes.length} 处修改尚未保存，离开前请先处理。</p><div class="schedule-leave-actions"><button type="button" class="btn" id="schedule-leave-stay">继续编辑</button><button type="button" class="btn" id="schedule-leave-discard">放弃修改</button></div>`,null,false,'项目日程');
+    if(ctx().mobile){dialog.classList.remove('mobile-sheet');dialog.classList.add('schedule-mobile-confirm');}
+    body.querySelector('#schedule-leave-stay').onclick=()=>closeDialog(true);
+    body.querySelector('#schedule-leave-discard').onclick=()=>{closeDialog(true);discardScheduleEdit();proceed();};
+    return false;
+  }
   function setWeekCell(key,value){
+    requireScheduleEdit();
+    const reason=ProjectScheduleAccess.deadlineReason(JSON.parse(key)[2],scheduleAdmin());if(reason)throw Error(reason);
     const w=weekInput(),[projectId,memberRole,date,workItemId]=JSON.parse(key),old=state.times.filter(r=>r.personId===personId&&r.projectId===projectId&&r.role===memberRole&&r.date===date&&(r.workItemId||'legacy')===workItemId);
     if(!Object.hasOwn(w.original,key))w.original[key]=JSON.stringify(old);
     if(!w.meta[key])w.meta[key]={activity:old[0]?.activity||'',description:old[0]?.description||''};
     w.values[key]=value;w.error='';w.dirty=true;
   }
   function setEntryMeta(key,field,value){
+    requireScheduleEdit();
+    const reason=ProjectScheduleAccess.deadlineReason(JSON.parse(key)[2],scheduleAdmin());if(reason)throw Error(reason);
     const w=weekInput(),[projectId,role,date,workItemId]=JSON.parse(key),old=state.times.filter(r=>r.personId===personId&&ProjectSchedule.matches(r,{projectId,role,workItemId})&&r.date===date);
     if(!Object.hasOwn(w.values,key))setWeekCell(key,old.reduce((n,r)=>n+Number(r.hours),0)||'');
-    w.meta[key][field]=value;refreshWeek();
+    w.meta[key][field]=value;w.error='';const error=content.querySelector('#week-error');if(error)error.hidden=true;refreshWeek();
   }
   function addCellEntry(projectId,memberRole,date){
-    if(role==='manager')throw Error('当前身份仅可查看');
+    requireScheduleEdit();
     const d=ProjectSchedule.weekData(ctx());if(!d.working(date)||d.locked(date))throw Error('该日期不可填报');
     const w=weekInput(),k=ProjectSchedule.dayKey(projectId,memberRole,date),ids=d.entries({projectId,role:memberRole},date).map(r=>r.workItemId);ids.push('work-'+crypto.randomUUID());w.slots[k]=ids;render();
     const last=[...content.querySelectorAll('[data-week-cell]')].filter(el=>{const [p,r,day]=JSON.parse(el.dataset.weekCell);return p===projectId&&r===memberRole&&day===date;}).at(-1);last?.focus();
   }
-  function refreshWeek(){const d=ProjectSchedule.weekData(ctx());weekInput().dirty=d.pending.length>0;ProjectSchedule.refreshWeek(ctx());}
+  function refreshWeek(){const d=ProjectSchedule.weekData(ctx());weekInput().dirty=d.pending.length>0;ProjectSchedule.refreshWeek(ctx());publish();}
   function saveWeek(){
     const w=weekInput();try{
-      if(role==='manager')throw Error('当前管理身份仅可查看日程');
+      requireScheduleEdit();
       if([...content.querySelectorAll('[data-week-cell]')].some(el=>el.validity.badInput))throw Error('请填写有效数字，工时按 0.5 小时填写');
-      const d=ProjectSchedule.weekData(ctx());if(!d.changes.length){toast('没有需要保存的修改');return;}
+      const d=ProjectSchedule.weekData(ctx());if(!d.changes.length){discardScheduleEdit();return true;}
       for(const c of d.changes){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId),current=JSON.stringify(state.times.filter(r=>r.personId===personId&&ProjectSchedule.matches(r,c)&&r.date===c.date));if(w.original[key]!==current)throw Error(c.date+' 的记录已变化，请撤销未保存修改后重新填写');}
-      persist(M.saveWeekTimes(state,personId,d.changes));for(const c of d.changes){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId);delete w.values[key];delete w.original[key];delete w.meta[key];}for(const key of Object.keys(w.slots))if(d.dates.includes(JSON.parse(key)[2]))delete w.slots[key];w.error='';render();toast(d.periodName+'工时已保存');
-    }catch(error){w.error=error.message;const el=content.querySelector('#week-error');if(el){el.hidden=false;el.textContent=error.message;if(ctx().mobile)toast(error.message,true);}else throw error;}
+      persist(M.saveWeekTimes(state,personId,d.changes));for(const c of d.changes){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId);delete w.values[key];delete w.original[key];delete w.meta[key];}for(const key of Object.keys(w.slots))if(d.dates.includes(JSON.parse(key)[2]))delete w.slots[key];w.editing=false;w.error='';render();toast(d.periodName+'工时已保存');return true;
+    }catch(error){w.error=error.message;const el=content.querySelector('#week-error');if(el){el.hidden=false;el.textContent=error.message;if(ctx().mobile)toast(error.message,true);}else throw error;return false;}
   }
-  function copyPreviousWeek(){
-    if(role==='manager')throw Error('当前管理身份仅可查看日程');
-    const d=ProjectSchedule.weekData(ctx()),w=weekInput();let count=0;
-    for(const m of state.members.filter(m=>m.personId===personId))for(const date of d.dates){
-      if(!d.working(date)||d.locked(date)||d.entries(m,date).some(r=>Number(r.hours)>0))continue;
-      const sourceDate=d.mode==='month'?previousMonthDate(date):addDays(date,-7),source=state.times.filter(r=>r.status==='submitted'&&r.personId===personId&&r.projectId===m.projectId&&r.role===m.role&&r.date===sourceDate),groups=new Map();
-      for(const r of source){const id=r.workItemId||'legacy';if(!groups.has(id))groups.set(id,{workItemId:id,activity:r.activity||'',description:r.description||'',hours:0});groups.get(id).hours+=Number(r.hours);}
-      for(const r of groups.values()){const k=ProjectSchedule.cellKey(m.projectId,m.role,date,r.workItemId);setWeekCell(k,String(r.hours));w.meta[k]={activity:r.activity,description:r.description};count++;}
-      if(groups.size){const id=JSON.stringify([m.projectId,m.role]);if(!w.extra.includes(id))w.extra.push(id);}
-    }
-    render();toast(count?'已沿用 '+count+' 条当天工时，请核对事项后保存':'没有可沿用的工时');
-  }
-  function previousMonthDate(date){const y=Number(date.slice(0,4)),m=Number(date.slice(5,7)),day=Number(date.slice(8)),last=new Date(y,m-1,0).getDate();if(day>last)return '';return iso(new Date(y,m-2,day,12));}
   function mobileFormContext(){
-    if(role==='manager')throw Error('当前身份仅可查看');const d=ProjectSchedule.weekData(ctx()),date=ProjectScheduleMobile.selectedDate(ctx(),d);if(!d.working(date)||d.locked(date))throw Error('该日期不可填报');return {d,date,rows:ProjectScheduleMobile.formRows(ctx(),d,date)};
+    requireScheduleEdit();const d=ProjectSchedule.weekData(ctx()),date=ProjectScheduleMobile.selectedDate(ctx(),d);if(!d.working(date)||d.locked(date))throw Error('该日期不可填报');return {d,date,rows:ProjectScheduleMobile.formRows(ctx(),d,date)};
   }
   function selectMobileProject(rowId,value){
     const {d,date,rows}=mobileFormContext(),row=rows.find(r=>r.id===rowId),m=d.rows.find(m=>JSON.stringify([m.projectId,m.role])===value);if(!row||!m)throw Error('请选择有效项目');
-    const old=d.rows.flatMap(m=>d.entries(m,date)).find(r=>r.key===row.key);if(old&&old.projectId===m.projectId&&old.role===m.role)return;
+    const old=d.rows.flatMap(m=>d.entries(m,date)).find(r=>r.key===row.key);if(old&&old.projectId===m.projectId&&old.role===m.role){render();return;}
     const meta={activity:old?.activity||'',description:old?.description||''},hours=old?.hours||'',key=ProjectSchedule.cellKey(m.projectId,m.role,date,'mobile-'+row.id);
     if(row.key)setWeekCell(row.key,'');setWeekCell(key,hours);weekInput().meta[key]=meta;row.key=key;render();
   }
   function addMobileRow(){
-    const {rows}=mobileFormContext(),row={id:crypto.randomUUID(),key:null};rows.push(row);render();const card=content.querySelector('[data-mobile-row="'+row.id+'"]');card?.scrollIntoView({block:'center',behavior:'smooth'});card?.querySelector('select')?.focus({preventScroll:true});
+    const {rows}=mobileFormContext(),row={id:crypto.randomUUID(),key:null};rows.push(row);render();const card=content.querySelector('[data-mobile-row="'+row.id+'"]');card?.scrollIntoView({block:'center',behavior:'smooth'});card?.querySelector('[data-action="mobile-project-open"]')?.focus({preventScroll:true});
   }
   function removeMobileRow(rowId){
     const {date,rows}=mobileFormContext(),row=rows.find(r=>r.id===rowId);if(!row)return;if(row.key)setWeekCell(row.key,'');weekInput().mobileRows[date]=rows.filter(r=>r.id!==rowId);render();
   }
-  function openMobileBatch(){
-    if(role==='manager')throw Error('当前身份仅可查看');
-    const d=ProjectSchedule.weekData(ctx());if(!d.rows.length)throw Error('暂无可填报项目');
-    const memberId=m=>JSON.stringify([m.projectId,m.role]);
-    openDialog('多天填写',`<form id="mobile-batch-form"><label class="field">项目<select name="member">${options(d.rows.map(m=>({id:memberId(m),name:pName(m.projectId).replace('（示例）','')+' · '+m.role})),memberId(d.rows[0]))}</select></label><div class="ms-batch-caption"><b>选择日期</b><small>仅填空白工作日</small></div><div id="ms-batch-days" class="ms-batch-days"></div><label class="field">每天工时<div class="ms-batch-hours"><input name="hours" type="number" min="0.5" max="8" step="0.5" inputmode="decimal" value="4" required aria-label="每天工时"><span>小时</span></div></label><div class="ms-batch-presets">${[1,2,4,6,8].map(h=>'<button type="button" data-batch-hours="'+h+'">'+h+'h</button>').join('')}</div><label class="field">事项分类<select name="activity" required><option value="">请选择事项</option>${options(ProjectSchedule.activities.map(name=>({id:name,name})))}</select></label><label class="field" id="ms-batch-description" hidden>具体内容（必填）<input name="description" type="text" maxlength="150"></label>${formActions('填入'+d.periodName)}</form>`,()=>{
-      const v=values(),hours=Number(v.hours),days=[...body.querySelectorAll('[name="dates"]:checked')].map(el=>el.value);if(!days.length)throw Error('请选择至少一个空白工作日');if(!Number.isFinite(hours)||hours<=0||hours%0.5||hours>8)throw Error('每天工时须为0.5至8小时，按0.5小时填写');
-      const [projectId,memberRole]=JSON.parse(v.member),member={projectId,role:memberRole},current=ProjectSchedule.weekData(ctx()),cells=days.map(date=>{if(current.entries(member,date).some(r=>Number(r.hours)>0))throw Error(date+' 已有工时，请重新选择');const r=current.entries(member,date)[0];return {projectId,role:memberRole,date,workItemId:r.workItemId,hours,activity:v.activity,description:v.activity==='其他'?v.description.trim():''};});
-      const combined=new Map(current.pending.map(c=>[ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId),c]));cells.forEach(c=>combined.set(ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId),c));M.saveWeekTimes(state,personId,[...combined.values()]);
-      for(const c of cells){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId);setWeekCell(key,String(c.hours));weekInput().meta[key]={activity:c.activity,description:c.description};}closeDialog(true);render();toast('已填入 '+cells.length+' 天，核对后保存'+d.periodName);
-    });
-    const drawDays=()=>{const [projectId,memberRole]=JSON.parse(body.querySelector('[name="member"]').value),m={projectId,role:memberRole};body.querySelector('#ms-batch-days').innerHTML=d.dates.map(date=>{const filled=d.entries(m,date).some(r=>Number(r.hours)>0),blocked=!d.working(date)||d.locked(date)||filled;return '<label class="'+(blocked?'blocked':'')+'"><input type="checkbox" name="dates" value="'+date+'" '+(blocked?'disabled':'checked')+'><span>'+Number(date.slice(5,7))+'/'+Number(date.slice(8))+'</span><small>'+(filled?'已填':d.locked(date)?'锁定':!d.working(date)?'休':'周'+['日','一','二','三','四','五','六'][new Date(date+'T12:00:00').getDay()])+'</small></label>';}).join('');};
-    drawDays();body.querySelector('[name="member"]').onchange=drawDays;body.querySelector('[name="activity"]').onchange=event=>{const other=event.target.value==='其他';body.querySelector('#ms-batch-description').hidden=!other;body.querySelector('[name="description"]').required=other;};body.querySelectorAll('[data-batch-hours]').forEach(el=>el.onclick=()=>{body.querySelector('[name="hours"]').value=el.dataset.batchHours;formDirty=true;});
-  }
-  function openDay(date=filters.date,initial=null){
-    if(role==='manager')throw Error('当前身份仅可查看');
-    const pid=personId,revision=state.revision,cache=new Map(),members=state.members.filter(m=>m.personId===pid);if(!members.length)throw Error('当前人员尚未加入项目');
-    const original=d=>state.times.filter(r=>r.personId===pid&&r.date===d&&r.status==='submitted');
-    function initialRows(d){return members.flatMap(m=>{const found=new Map();original(d).filter(r=>r.projectId===m.projectId&&r.role===m.role).forEach(r=>{const id=r.workItemId||'legacy';if(!found.has(id))found.set(id,{...m,workItemId:id,activity:r.activity||'',description:r.description||'',hours:0});found.get(id).hours+=Number(r.hours);});return found.size?[...found.values()]:[{...m,workItemId:'daily',activity:'',description:'',hours:''}];});}
-    function stash(d){const rows=cache.get(d);if(!rows)return;body.querySelectorAll('[data-day-row]').forEach(el=>rows[Number(el.dataset.dayRow)].hours=el.value);body.querySelectorAll('[data-day-activity]').forEach(el=>rows[Number(el.dataset.dayActivity)].activity=el.value);body.querySelectorAll('[data-day-description]').forEach(el=>rows[Number(el.dataset.dayDescription)].description=el.value);}
-    function draw(d){
-      const rows=cache.get(d)||initialRows(d);if(!cache.has(d)){if(initial&&d===date){rows.push({...members.find(m=>m.projectId===initial.projectId&&m.role===initial.role),workItemId:'work-'+crypto.randomUUID(),activity:initial.activity||'',description:initial.description||'',hours:initial.hours});}cache.set(d,rows);}
-      const blocked=!state.months.includes(d.slice(0,7))?'请选择演示范围内的日期':Object.keys(state.closed).some(m=>m>=d.slice(0,7))?'该日期已锁定':!state.calendar[d.slice(0,7)]?.days.includes(d)?'非工作日不可填报':'';
-      body.innerHTML=`<form id="day-time-form"><label class="field">日期<input id="day-time-date" type="date" value="${esc(d)}" required></label>${initial?.hint?'<p class="notice info">'+esc(initial.hint)+'</p>':''}<div class="day-modal-rows">${rows.map((m,i)=>`<div class="day-work-row"><div class="day-work-head"><b>${esc(pName(m.projectId).replace('（示例）',''))}</b>${button('＋ 事项','day-add-work',`data-project="${esc(m.projectId)}" data-role="${esc(m.role)}"`,'link small')}</div><div class="day-work-inputs"><select data-day-activity="${i}" aria-label="工作事项" ${blocked?'disabled':''}>${m.activity?'':'<option value="">待分类</option>'}${options(ProjectSchedule.activities.map(name=>({id:name,name})),m.activity)}</select><input type="text" data-day-description="${i}" maxlength="150" value="${esc(m.description)}" placeholder="具体内容（必填）" ${m.activity==='其他'?Number(m.hours)>0&&!blocked?'required':'':'hidden'} aria-label="具体工作内容" ${blocked?'disabled':''}><input type="number" min="0" max="8" step="0.5" inputmode="decimal" data-day-row="${i}" value="${esc(m.hours||'')}" placeholder="—" aria-label="工时" ${blocked?'disabled':''}><small>h</small></div></div>`).join('')}</div><div class="day-modal-total">合计 <b id="day-total">${rows.reduce((n,r)=>n+Number(r.hours||0),0)}h</b></div>${blocked?'<p class="form-error">'+esc(blocked)+'</p>':''}<div class="day-modal-note">0.5h 起填 · 每天最多 8h</div>${formActions('保存')}</form>`;
-      body.querySelector('#day-time-date').onchange=e=>{stash(d);const next=e.target.value;if(!next){e.target.value=d;return;}draw(next);};
-      body.querySelectorAll('.day-work-inputs input,.day-work-inputs select').forEach(el=>el.oninput=()=>{stash(d);body.querySelectorAll('[data-day-description]').forEach(note=>{const row=cache.get(d)[Number(note.dataset.dayDescription)];note.hidden=row.activity!=='其他';note.required=row.activity==='其他'&&Number(row.hours)>0&&!note.disabled;});body.querySelector('#day-total').textContent=cache.get(d).reduce((n,r)=>n+Number(r.hours||0),0)+'h';});
-      body.querySelectorAll('[data-action="day-add-work"]').forEach(el=>el.onclick=()=>{if(blocked)return;stash(d);const m=members.find(m=>m.projectId===el.dataset.project&&m.role===el.dataset.role);rows.push({...m,workItemId:'work-'+crypto.randomUUID(),activity:'',description:'',hours:''});formDirty=true;draw(d);});
-      dialogSave=()=>{
-        if(blocked)throw Error(blocked);stash(d);const changes=cache.get(d).filter(r=>{const old=original(d).filter(x=>ProjectSchedule.matches(x,r));return Number(r.hours)!==old.reduce((n,x)=>n+Number(x.hours),0)||Number(r.hours)>0&&old.some(x=>(x.activity||'')!==r.activity||(x.description||'')!==r.description);}).map(r=>({projectId:r.projectId,role:r.role,workItemId:r.workItemId,activity:r.activity,description:r.description,date:d,hours:Number(r.hours)}));
-        if(!changes.length){closeDialog(true);return;}const pending=ProjectSchedule.weekData(ctx()).pending;if(changes.some(c=>pending.some(x=>ProjectSchedule.matches(x,c)&&x.date===d)))throw Error('该事项有未保存的表格修改，请先保存或撤销后补记');
-        persist(M.saveWeekTimes(state,pid,changes,revision));closeDialog(true);render();toast('工时已保存');
-      };
-    }
-    openDialog('单日补记','',null);draw(date);
-  }
-  function editTime(id=null,date=null){const row=state.times.find(r=>r.id===id);openDay(row?.date||date||filters.date);}
   function timeBatch(mode='batch'){
-    if(role==='manager')throw Error('当前管理身份仅可查看日程');
+    requireScheduleEdit();
     const members=state.members.filter(m=>m.personId===personId),start=todayInMonth(),revision=state.revision;
     openDialog(mode==='copy-week'?'复制某周实际工时':mode==='copy-day'?'复制某天实际工时':'跨日批量填报',`<form><div class="form-grid">${mode==='batch'?fieldSelect('项目','projectId',members.map(m=>({id:m.projectId,name:pName(m.projectId)})),members[0]?.projectId):inputField(mode==='copy-week'?'来源周内任一天':'来源日期','source',start,'date')}${inputField(mode==='batch'?'开始日期':'目标开始日期','startDate',start,'date')}${mode==='copy-day'?'':inputField(mode==='copy-week'?'目标周结束（复制最多7天）':'结束日期','endDate',start,'date')}${mode==='batch'?inputField('每日工时','hours','4','number','step="0.5" min="0.5" max="8"'):''}</div><div class="notice info" style="margin-top:16px">仅填报已实际发生的投入。系统自动跳过非工作日；保存前展示明细供核对，确认后直接计入核算。</div>${formActions('预览并核对')}</form>`,()=>{
       const v=values(),rows=[];let begin=v.startDate,end=v.endDate||v.startDate;if(begin>end)throw Error('结束日期不能早于开始日期');
@@ -446,13 +527,17 @@
   });
   document.addEventListener('click',event=>{
     const target=event.target.closest('[data-action]');if(!target||target.disabled)return;
-    event.preventDefault();const a=target.dataset.action;
+    event.preventDefault();executeAction(target);
+  });
+  function executeAction(target){
+    const a=target.dataset.action;
+    if(['mobile-date','fill-period','period-step','week-current','week-to-week','mobile-entry','reset'].includes(a)&&!prepareScheduleLeave(()=>executeAction(target)))return;
     guard(()=>{
       if(a==='navigate')navigate(target.dataset.page);
       if(a==='activate')activate(target.dataset.key);
       if(a==='dialog-close')closeDialog();
       if(a==='dialog-save'){if(!dialogSave)return;const form=body.querySelector('form');if(form?.elements.mode){form.elements.hours.required=form.elements.mode.value!=='time';}if(form&&!form.reportValidity())return;return dialogSave();}
-      if(a==='project-detail')showProject(target.dataset.id);
+      if(a==='project-detail'&&!mobileSchedule())showProject(target.dataset.id);
       if(a==='project-section'){currentTab().section=target.dataset.section;render();}
       if(a==='delivery-edit-member')editMember(target.dataset.id,target.dataset.person);
       if(a==='delivery-edit-cost')editProjectCosts(target.dataset.id);
@@ -461,7 +546,13 @@
       if(a==='delivery-expand'){collectDeliverySearch();deliveryFilters.expanded=!deliveryFilters.expanded;render();}
       if(a==='delivery-status'){collectDeliverySearch();deliveryFilters.status=target.dataset.status;render();}
       if(a==='delivery-range'){collectDeliverySearch();const days={'今天':0,'昨天':1,'近7天':6,'近30天':29,'近半年':183,'近1年':365},end='2026-11-09';deliveryFilters.start=addDays(end,-days[target.dataset.range]);deliveryFilters.end=target.dataset.range==='昨天'?addDays(end,-1):end;deliveryFilters.range=target.dataset.range;render();}
-      if(a==='delivery-refresh')render();
+      if(a==='delivery-refresh'){render();toast('已刷新交付数据');}
+      if(a==='delivery-application')applyDelivery(target.dataset.kind);
+      if(a==='delivery-application-detail')deliveryApplicationDetail(target.dataset.id);
+      if(a==='delivery-allocation-detail')deliveryAllocationDetail(target.dataset.id);
+      if(a==='delivery-application-note')deliveryApplicationNote(target.dataset.id);
+      if(a==='delivery-confirmation-download')ProjectDeliveryApplications.download(state,currentTab().projectId);
+      if(a==='delivery-confirmation-page'){currentTab().deliveryPage=Number(target.dataset.page);render();}
       if(a==='delivery-new')addDeliveryProject();
       if(a==='delivery-create-save')saveDeliveryProject();
       if(a==='delivery-create-cancel'){if(close('project-create'))navigate('projects');}
@@ -476,41 +567,52 @@
       if(a==='delivery-columns')openDialog('列表显示设置','<p class="rule-text">当前展示项目编号、订单编号、项目名称、所属团队及负责人、公司名称、标记、风险、项目类型、业务类型和金额。可横向滚动查看完整信息，操作列固定在右侧。</p>');
       if(a==='delivery-team')toast('当前费用承担团队：开发团队');
       if(a==='consultant-search'){Object.assign(filters,Object.fromEntries(new FormData(content.querySelector('#consultant-search'))));render();}
-      if(a==='consultant-reset'){Object.assign(filters,{consultantQuery:'',consultantRole:'all',consultantStatus:'all'});render();}
+      if(a==='consultant-reset'){Object.assign(filters,{consultantQuery:''});render();}
       if(a==='consultant-new')editConsultant();
       if(a==='consultant-edit')editConsultant(target.dataset.id);
+      if(a==='consultant-monthly-pay')editConsultantMonthlyPay(target.dataset.id);
       if(a==='consultant-detail'){const result=ProjectConsultants.detail(state,target.dataset.id);openDialog(result.title,result.html,null,true,'师资与教练管理 · 咨询师档案');}
       if(a==='consultant-analysis'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.analysisRole=state.members.some(x=>x.personId===target.dataset.id&&x.role==='咨询师')?'咨询师':'all';filters.personManagerView='overview';navigate('person-analysis');}
+      if(a==='schedule-logs'&&!mobileSchedule())showScheduleLogs();
+      if(a==='schedule-person-open'){if(!scheduleAdmin())throw Error('只有管理员可查看其他人员');switchSchedulePerson(target.dataset.person);}
       if(a==='week-save')saveWeek();
+      if(a==='schedule-edit')beginScheduleEdit();
+      if(a==='schedule-edit-cancel'){if(prepareScheduleLeave(()=>render()))render();}
       if(a==='schedule-project-pin')toggleSchedulePin(target.dataset.project);
       if(a==='mobile-date'){filters.mobileDate=target.dataset.date;if(filters.scheduleView==='month')filters.mobileCalendarOpen=false;render();}
       if(a==='mobile-add-row')addMobileRow();
+      if(a==='mobile-project-open'){
+        const {rows}=mobileFormContext();if(!rows.some(row=>row.id===target.dataset.row))throw Error('填报记录不存在');
+        filters.mobileProjectPicker={rowId:target.dataset.row,query:'',scrollY:window.scrollY};render();window.scrollTo(0,0);
+      }
+      if(a==='mobile-project-back'){const scrollY=filters.mobileProjectPicker?.scrollY||0;filters.mobileProjectPicker=null;render();window.scrollTo(0,scrollY);}
+      if(a==='mobile-project-select'){
+        const picker=filters.mobileProjectPicker;if(!picker)return;
+        filters.mobileProjectPicker=null;selectMobileProject(picker.rowId,target.dataset.value);
+        const card=[...content.querySelectorAll('[data-mobile-row]')].find(el=>el.dataset.mobileRow===picker.rowId);card?.scrollIntoView({block:'center'});
+      }
       if(a==='mobile-remove-row')removeMobileRow(target.dataset.row);
       if(a==='mobile-calendar-toggle'){filters.mobileCalendarOpen=true;render();}
-      if(a==='mobile-activity'){if(role==='manager')throw Error('当前身份仅可查看');setEntryMeta(target.dataset.key,'activity',target.dataset.value);}
+      if(a==='mobile-activity'){requireScheduleEdit();setEntryMeta(target.dataset.key,'activity',target.dataset.value);}
       if(a==='mobile-hour-step'||a==='mobile-hour-set'){
-        if(role==='manager')throw Error('当前身份仅可查看');const input=[...content.querySelectorAll('[data-week-cell]')].find(el=>el.dataset.weekCell===target.dataset.key);if(input&&!input.disabled){const value=a==='mobile-hour-set'?Number(target.dataset.hours):Math.min(8,Math.max(0,Number(input.value||0)+Number(target.dataset.delta)));input.value=value||'';setWeekCell(target.dataset.key,input.value);content.querySelector('#week-error').hidden=true;refreshWeek();}
+        requireScheduleEdit();const input=[...content.querySelectorAll('[data-week-cell]')].find(el=>el.dataset.weekCell===target.dataset.key);if(input&&!input.disabled){const value=a==='mobile-hour-set'?Number(target.dataset.hours):Math.min(8,Math.max(0,Number(input.value||0)+Number(target.dataset.delta)));input.value=value||'';setWeekCell(target.dataset.key,input.value);content.querySelector('#week-error').hidden=true;refreshWeek();}
       }
-      if(a==='mobile-clear'){if(role==='manager')throw Error('当前身份仅可查看');setWeekCell(target.dataset.key,'');weekInput().meta[target.dataset.key]={activity:'',description:''};render();}
-      if(a==='mobile-batch')openMobileBatch();
+      if(a==='mobile-clear'){requireScheduleEdit();setWeekCell(target.dataset.key,'');weekInput().meta[target.dataset.key]={activity:'',description:''};render();}
       if(a==='cell-add')addCellEntry(target.dataset.project,target.dataset.role,target.dataset.date);
       if(a==='week-step')applyFilter('date',addDays(filters.date,Number(target.dataset.step)));
       if(a==='week-current')applyFilter('date','2026-11-09');
-      if(a==='week-copy')copyPreviousWeek();
       if(a==='week-revert'){const w=weekInput(),dates=ProjectSchedule.weekData(ctx()).dates;for(const key of Object.keys(w.values))if(dates.includes(JSON.parse(key)[2])){delete w.values[key];delete w.original[key];delete w.meta[key];}for(const key of Object.keys(w.slots))if(dates.includes(JSON.parse(key)[2]))delete w.slots[key];for(const date of dates)if(w.mobileRows)delete w.mobileRows[date];w.error='';render();}
-      if(a==='week-to-day')openDay(ctx().mobile?ProjectScheduleMobile.selectedDate(ctx(),ProjectSchedule.weekData(ctx())):filters.date);
       if(a==='week-to-week'){filters.scheduleView='week';render();}
       if(a==='fill-period'){filters.scheduleView=target.dataset.mode;filters.scheduleStats=target.dataset.mode;filters.mobileCalendarOpen=true;render();}
       if(a==='period-step'){const direction=Number(target.dataset.direction);if(filters.scheduleView==='month'){const index=state.months.indexOf(month)+direction;if(index<0||index>=state.months.length){toast('已到演示数据边界');return;}applyFilter('month',state.months[index]);}else applyFilter('date',addDays(filters.date,7*direction));}
       if(a==='week-add'){const el=content.querySelector('#week-add-project');if(el){const w=weekInput();if(!w.extra.includes(el.value))w.extra.push(el.value);render();}}
-      if(a==='time-new')editTime(null,target.dataset.date);
-      if(a==='time-edit')editTime(target.dataset.id);
-      if(a==='time-delete'){if(role==='manager')throw Error('当前管理身份仅可查看日程');if(!confirm('确认删除该工时记录？'))return;const row=state.times.find(t=>t.id===target.dataset.id);if(employee()&&row.personId!==personId)throw Error('只能维护本人记录');const next=M.deleteTime(state,target.dataset.id);persist(next);render();toast('工时已删除');if(dialog.open)closeDialog(true);}
+      if(a==='time-delete'){requireScheduleEdit();if(!confirm('确认删除该工时记录？'))return;const row=state.times.find(t=>t.id===target.dataset.id);if(!scheduleAdmin()&&row.personId!==currentUserId)throw Error('只能维护本人记录');const next=M.deleteTime(state,target.dataset.id);persist(next);render();toast('工时已删除');if(dialog.open)closeDialog(true);}
       if(a==='time-copy-day')timeBatch('copy-day');
       if(a==='time-copy-week')timeBatch('copy-week');
       if(a==='time-batch')timeBatch();
       if(a==='schedule-day'){filters.date=target.dataset.date;filters.scheduleView='day';render();}
-      if(a==='mobile-toggle'){mobile=!mobile;navigate('schedule');render();}
+      if(a==='mobile-entry'){mobile=true;mobileHome=true;if(!tabs.some(t=>t.key==='schedule'))tabs.push({key:'schedule',label:labels.schedule,nav:'schedule'});active='schedule';render();publish();}
+      if(a==='mobile-home-schedule'){mobile=true;mobileHome=false;navigate('schedule');}
       if(a==='correct')correctAmount(target.dataset.collection,target.dataset.id);
       if(a==='batch-detail')showBatch(target.dataset.id);
       if(a==='sources')showSources(target.dataset.kind,target.dataset.id,target.dataset.month);
@@ -521,13 +623,14 @@
       if(a==='manager-alerts')showManagerAlerts();
       if(a==='manager-diagnose'){const result=ProjectManagementInsights.diagnose(ctx(),target.dataset.id);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 决策诊断');}
       if(a==='manager-rules'){const rules=content.querySelector('.manager-rules');if(rules){rules.open=true;rules.scrollIntoView({behavior:'smooth',block:'start'});}}
-      if(a==='manager-detail-person'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.personManagerView='efficiency';render();}
+      if(a==='manager-detail-person'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.personManagerView='accounting';render();}
       if(a==='export-analysis')return exportAnalysis();
       if(a==='analysis-import')openAnalysisImport();
-      if(a==='reset'){if(!confirm('重置仅影响本次项目管理优化 Demo 的本地数据，确定恢复示例吗？'))return;try{localStorage.removeItem(KEY);localStorage.removeItem(PIN_KEY);localStorage.removeItem(TEMPLATE_KEY);chatSession.messages=[];chatSession.pending=null;weekInputs.clear();lastRaw=null;persist(M.seed());if(dialog.open)closeDialog(true);render();toast('已恢复虚构示例数据');}catch(e){throw Error('重置失败：'+e.message);}}
+      if(a==='reset'){if(!confirm('重置仅影响本次项目管理优化 Demo 的本地数据，确定恢复示例吗？'))return;try{localStorage.removeItem(KEY);localStorage.removeItem(PIN_KEY);localStorage.removeItem(TEMPLATE_KEY);chatSession.messages=[];chatSession.pending=null;weekInputs.clear();lastRaw=null;persist(M.seed(),false);if(dialog.open)closeDialog(true);render();toast('已恢复虚构示例数据');}catch(e){throw Error('重置失败：'+e.message);}}
     });
-  });
+  }
   function applyFilter(key,value){
+    if(['date','month','mobileScheduleTab'].includes(key)&&!prepareScheduleLeave(()=>applyFilter(key,value))){render();return;}
     if(key==='date'&&!value){render();return;}
     if(key==='month'&&!state.months.includes(value)){toast('示例支持 2026-09 至 2026-11',true);render();return;}
     if(key==='month'){month=value;if(!filters.date.startsWith(month))filters.date=state.calendar[month]?.days[0]||month+'-01';}
@@ -535,7 +638,7 @@
     render();
   }
   document.addEventListener('change',event=>{
-    const el=event.target;if(el.matches('[data-mobile-project]'))guard(()=>selectMobileProject(el.dataset.mobileProject,el.value));if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
+    const el=event.target;if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
     if(el.closest('#delivery-create-form'))guard(()=>{
       requireFinance();ProjectDeliveryCreate.capture(el.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';
       if(el.name==='orderNo'){ProjectDeliveryCreate.chooseOrder(state,deliveryCreateDraft);render();}
@@ -544,13 +647,15 @@
       else if(el.name==='attachments'){ProjectDeliveryCreate.addFiles(deliveryCreateDraft,el.files);render();}
       else refreshDeliveryCreate();publish();
     });
-    if(el.id==='delivery-member-month'){currentTab().period=el.value;render();}
     if(el.dataset.projectMeta)guard(()=>{requireFinance();const next=structuredClone(state),p=next.projects.find(p=>p.id===el.dataset.id);p[el.dataset.projectMeta]=el.value;next.revision++;persist(next);toast('项目标记已保存');});
-    if(el.id==='demo-role'){if(dialog.open&&!closeDialog()){el.value=role;return;}role=el.value;if(employee()){tabs=tabs.filter(t=>t.nav==='schedule');active=tabs[0]?.key||null;navigate('schedule');}else render();}
-    if(el.id==='demo-person'){if(dialog.open&&!closeDialog()){el.value=personId;return;}personId=el.value;render();}
+    if(el.id==='delivery-confirmation-size'){currentTab().deliveryPageSize=Number(el.value);currentTab().deliveryPage=1;render();}
+    if(el.id==='schedule-access-person')guard(()=>switchSchedulePerson(el.value));
+    if(el.id==='demo-role')switchDemoRole(el.value);
+    if(el.id==='demo-person'){if(!scheduleAdmin()&&currentTab()?.nav==='schedule'){el.value=personId;toast('项目成员只能查看自己的日程',true);return;}if(dialog.open&&!closeDialog()){el.value=personId;return;}personId=el.value;render();}
   });
   document.addEventListener('click',event=>{const el=event.target.closest('button[data-filter]');if(el){event.preventDefault();guard(()=>applyFilter(el.dataset.filter,el.dataset.value));}});
   content.addEventListener('input',event=>{
+    if(event.target.id==='mobile-project-search'){filters.mobileProjectPicker.query=event.target.value;content.querySelector('#mobile-project-results').innerHTML=ProjectScheduleMobile.projectOptions(ctx(),event.target.value);return;}
     if(event.target.closest('#delivery-create-form')){ProjectDeliveryCreate.capture(event.target.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';const error=content.querySelector('#delivery-create-error');if(error)error.hidden=true;refreshDeliveryCreate();publish();return;}
     if(event.target.matches('[data-cell-description]')){setEntryMeta(event.target.dataset.cellDescription,'description',event.target.value);return;}
     if(event.target.matches('[data-week-cell]')){setWeekCell(event.target.dataset.weekCell,event.target.value);content.querySelector('#week-error').hidden=true;refreshWeek();return;}
@@ -562,9 +667,27 @@
     if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();saveWeek();return;}
     if(event.key==='Enter'&&event.target.matches('[data-week-cell]')){event.preventDefault();const inputs=[...content.querySelectorAll('[data-week-cell]:not(:disabled)')],index=inputs.indexOf(event.target),next=inputs[index+(event.shiftKey?-1:1)];if(next){next.focus();next.select();}}
   });
-  const markDirty=event=>{if(event.target.id==='settings-month'||event.target.matches('[data-manager-alert-level]'))return;if(body.querySelector('#lobster-history')){chatDirty();return;}formDirty=true;publish();};body.addEventListener('input',markDirty);body.addEventListener('change',markDirty);
+  const markDirty=event=>{if(event.target.closest('#schedule-logs')||['settings-month','consultant-pay-year'].includes(event.target.id)||event.target.matches('[data-manager-alert-level]'))return;if(body.querySelector('#lobster-history')){chatDirty();return;}formDirty=true;publish();};body.addEventListener('input',markDirty);body.addEventListener('change',markDirty);
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialog();});
-  window.addEventListener('beforeunload',event=>{if(formDirty||deliveryCreateDraft?.dirty||[...weekInputs.values()].some(c=>c.dirty)){event.preventDefault();event.returnValue='';}});
+  // Embedded preview browsers may suppress native leave-page dialogs. Keep refresh
+  // nonblocking and retain schedule inputs in this tab until the next reload.
+  const reloadKey='erp-project-demo-reload-v1';
+  function retainScheduleInputs(){
+    try{sessionStorage.setItem(reloadKey,JSON.stringify({revision:state.revision,role,personId,month,mobile,mobileHome,filters:{...filters,mobileProjectPicker:null},weekInputs:[...weekInputs]}));}catch{}
+  }
+  try{
+    const retained=JSON.parse(sessionStorage.getItem(reloadKey)||'null');sessionStorage.removeItem(reloadKey);
+    const reloading=performance.getEntriesByType('navigation')[0]?.type==='reload'||ERPClient.hosted&&new URLSearchParams(location.search).get('reload')==='1';
+    if(reloading&&retained?.revision===state.revision){
+      if(['finance','manager','employee'].includes(retained.role))role=retained.role;
+      if(state.people.some(p=>p.id===retained.personId))personId=retained.personId;
+      month=retained.month;mobile=retained.mobile;mobileHome=!!retained.mobileHome;Object.assign(filters,retained.filters);
+      for(const [key,value] of retained.weekInputs||[])weekInputs.set(key,value);
+      document.getElementById('demo-role').value=role;
+    }
+  }catch{}
+  window.addEventListener('beforeunload',retainScheduleInputs);
+  window.addEventListener('pagehide',retainScheduleInputs);
   window.addEventListener('storage',event=>{if(event.key===KEY&&event.newValue!==lastRaw){storageProblem='演示数据已在其他窗口变更，请刷新后继续，避免覆盖。';renderStorage();}});
   let marksConfigured=false;
   const marks=document.getElementById('project-marks');
@@ -573,9 +696,11 @@
   marks.configure(markConfig,{root:content,toolbar:!ERPClient.hosted,storage:!ERPClient.hosted,configGlobal:'ProjectIterationMarks',documentBase:new URL('../../../',location.href).href,getPage:()=>content.dataset.erpPage,navigate:page=>navigate(page)});
   marksConfigured=true;
   if(ERPClient.hosted)ERPIterationBridge.renderer(marks,'project');
-  ERPClient.connect({snapshot,navigate,activate,close});
+  ERPClient.connect({snapshot,navigate,activate,close,prepareLeave:prepareScheduleLeave});
   matchMedia('(max-width:760px)').addEventListener('change',()=>{if(currentTab()?.nav==='schedule'&&!dialog.open)render();});
+  const initialMobileHome=mobileHome;
   renderStorage();navigate('schedule');
+  if(initialMobileHome){mobile=true;mobileHome=true;render();publish();}
 })();
 
 

@@ -9,12 +9,13 @@ const out=process.env.ERP_QA_OUTPUT||path.join(root,'文档/迭代/在线预览�
  const pass=name=>{checks.push(name);console.log('PASS '+name);};
  await nav('projects');await f.locator('[data-action="delivery-new"]').click();await f.locator('#delivery-create-form').waitFor();
  await f.locator('[name="orderNo"]').selectOption({index:1});await f.locator('[name="name"]').fill('发布验收新增项目');
- for(let i=1;i<=3;i++){await f.getByRole('combobox',{name:`第${i}行成员`,exact:true}).selectOption('u'+i);await f.getByRole('spinbutton',{name:`第${i}行收入比例`,exact:true}).fill(i===2?'100':'0');}
+ for(let i=1;i<=3;i++)await f.getByRole('combobox',{name:`第${i}行成员`,exact:true}).selectOption('u'+i);
+ assert.equal(await f.getByRole('spinbutton',{name:/收入比例/}).count(),0);
  await f.locator('.dc-team-picker summary').click();await f.locator('[name="expenseTeam"]').first().check();await f.locator('[name="note"]').fill('发布验收');
  await nav('schedule');await p.locator('#erp-tabs [data-tab-id="project:project-create"][data-action="activate"]').click();assert.equal(await f.locator('[name="name"]').inputValue(),'发布验收新增项目');
  p.once('dialog',d=>d.dismiss());await p.locator('#erp-tabs [data-tab-id="project:project-create"][data-action="close"]').click();await f.locator('#delivery-create-form').waitFor();pass('新增项目页签保留草稿，取消放弃操作不丢数据');
  await f.locator('[data-action="delivery-create-save"]').click();await f.locator('#delivery-create-form').waitFor({state:'detached'});
- const saved=await f.locator('body').evaluate(()=>JSON.parse(localStorage.getItem('erp-project-demo-v1'))),added=saved.projects.find(x=>x.name==='发布验收新增项目');assert.ok(added);assert.equal(saved.members.filter(x=>x.projectId===added.id).length,3);assert.equal(saved.ratios.filter(x=>x.projectId===added.id).reduce((n,x)=>n+x.ratio,0),1);pass('新增项目实际保存项目、3位成员及当月收入比例');
+ const saved=await f.locator('body').evaluate(()=>JSON.parse(localStorage.getItem('erp-project-demo-v1'))),added=saved.projects.find(x=>x.name==='发布验收新增项目');assert.ok(added);assert.equal(saved.members.filter(x=>x.projectId===added.id).length,3);assert.equal(saved.ratios.filter(x=>x.projectId===added.id).length,0);pass('新增项目实际保存项目及3位成员，创建时不预设收入比例');
  const download=async button=>{const pending=p.waitForEvent('download');await button.click();const d=await pending;const book=new ExcelJS.Workbook();await book.xlsx.load(fs.readFileSync(await d.path()));return book;};
  await nav('person-analysis');await f.locator('[data-action="analysis-import"]').click();const dialog=f.locator('#analysis-import-form');await dialog.waitFor();await dialog.locator('[data-import-multi="departments"] summary').click();await dialog.locator('[data-import-choice="departments"]').nth(1).check();
  const personnel=await download(dialog.locator('[data-action="analysis-import-template"]'));assert.equal(personnel.worksheets.length,1);const sheet=personnel.worksheets[0];assert.equal(sheet.name,'人员固定成本');assert.equal(sheet.getCell('D5').value,'项目角色');assert.equal(sheet.getCell('E5').value,'部门');sheet.getCell('H6').value=12345;

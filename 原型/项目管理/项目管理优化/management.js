@@ -35,8 +35,8 @@
         if(r.now.income===0&&businessHours(d.s,null,r.id,d.month)>0)push(r,'delivery','medium','有投入，尚无确认交付',`本月投入 ${businessHours(d.s,null,r.id,d.month)}h，确认交付 0 元。`,'核实投入是否属于计划里程碑；查看待验收事项，避免把交付节奏误判为人员低效。');
         if(r.previous&&!d.cal.partial&&r.complete&&!reasons(r.previous).length&&r.previous.margin!=null&&r.now.margin!=null&&r.previous.margin-r.now.margin>=config.drop)push(r,'decline','medium','净利率环比下降',`上月 ${p(r.previous.margin)} → 本月 ${p(r.now.margin)}，下降 ${((r.previous.margin-r.now.margin)*100).toFixed(1)} 个百分点。`,'对照月度交付、人工投入和新增费用，核查净利率下降原因。');
       }else{
-        if(r.util!==null&&r.util<config.utilLow)push(r,'capacity','medium','项目投入利用率偏低',`已过工作日口径 ${r.hours}h / ${r.standard}h = ${p(r.util)}；观察线 ${p(config.utilLow)}。`,'核对非项目工作、请假和漏报，再安排可承接项目；未投入工时不等同可排班产能。');
-        if(r.util!==null&&r.util>config.utilHigh)push(r,'load','medium','交付负荷偏高',`实际项目工时占已过标准工时 ${p(r.util)}，高于 ${p(config.utilHigh)}。`,'核对未来排期与交付节点，评估是否需要协作支援；该指标不是加班判定。');
+        if(r.util!==null&&r.util<config.utilLow)push(r,'capacity','medium','项目投入利用率偏低',`核算工时口径 ${r.hours}h / ${r.standard}h = ${p(r.util)}；观察线 ${p(config.utilLow)}。`,'核对非项目工作、请假和漏报，再安排可承接项目；未投入工时不等同可排班产能。');
+        if(r.util!==null&&r.util>config.utilHigh)push(r,'load','medium','交付负荷偏高',`实际项目工时占标准工时 ${p(r.util)}，高于 ${p(config.utilHigh)}。`,'核对未来排期与交付节点，评估是否需要协作支援；该指标不是加班判定。');
         if(r.roi!==null&&r.roi<config.roi)push(r,'roi','medium','人工投入产出偏低',`交付 ${m(r.income)} ÷ 人工投入 ${m(r.labor)} = ${multiple(r.roi)}；观察线 ${config.roi} 倍。`,'先核对收入分配比例和未确认交付，再判断定价、任务结构与人工成本。');
         if(r.concentration!==null&&r.concentration>config.concentration)push(r,'single','medium','交付贡献集中于单项目',`最大项目贡献 ${p(r.concentration)}，项目：${d.s.projects.find(x=>x.id===r.top.id)?.name||r.top.id}。`,'提前准备后续项目衔接与知识交接，降低单项目结束带来的交付波动。');
         const mismatch=r.contributions.filter(x=>(x.income>0&&x.hours===0)||(x.income===0&&x.hours>0));
@@ -67,12 +67,104 @@
   }
   function capacity(d){const low=d.rows.filter(r=>r.util!==null&&r.util<config.utilLow),high=d.rows.filter(r=>r.util!==null&&r.util>config.utilHigh),underHours=low.reduce((n,r)=>n+Math.max(r.standard-r.hours,0),0);return `<section class="panel manager-capacity"><div class="panel-head"><div><h2>资源配置建议</h2><small>先核对实际状态，再安排项目接续</small></div></div><div class="panel-body"><div class="manager-capacity-numbers"><div><b>${low.length}</b><span>低利用人员</span></div><div><b>${underHours}h</b><span>未计入项目的标准工时</span></div><div><b>${high.length}</b><span>高负荷人员</span></div></div><h3>建议先核查</h3>${low.map(r=>`<div class="manager-resource"><b>${e(r.entity.name)}</b><span>利用率 ${p(r.util)}</span>${b('查看项目构成','manager-diagnose',`data-kind="person" data-id="${e(r.id)}"`,'link')}</div>`).join('')||'<p>当前没有触发低利用观察线。</p>'}<p>工时差值包含内部工作、请假和未填报，不等同可用排期。缺岗位技能、未来日程与请假数据，当前不自动推荐人员调入或调出。</p></div></section>`;}
   function rules(d){return `<details class="manager-rules panel"><summary>预警规则与数据口径 · 演示阈值，可继续调整</summary><div class="panel-body"><div class="manager-rule-grid"><div><b>利润与回款</b><p>税后利润＜0提示利润承压；净利率＜15%进入关注；累计回款／累计交付＜70%提示衔接缺口，＜40%优先处理。项目本月有投入但无交付提示核查里程碑。</p></div><div><b>产能与人效</b><p>项目工时／已过标准工时＜60%或＞90%提示核查；交付／（固定人工＋提成＋奖金）＜1.5倍提示关注；单项目交付占比＞70%提示项目接续。</p></div><div><b>数据与比较</b><p>缺工资或收入比例时不下盈利结论，不纳入利润排名和分层。历史估算工时保留原标识；本月按${AS_OF}截点核对利用率。月中不触发整月环比下降。</p></div><div><b>尚缺的决策依据</b><p>目前没有合同应收账龄、开票／验收到期日、项目预算基线、里程碑计划及未来技能排期，暂不推断逾期、预算超支或交付延期。建议不自动落任务。</p></div></div></div></details>`;}
-  function render(ctx){const f=ctx.filters,view=ctx.page==='project-analysis'?(f.projectManagerView==='alerts'?'overview':f.projectManagerView||'overview'):(f.personManagerView==='alerts'?'overview':f.personManagerView||'overview');
-    const d=data(ctx);d.ctx=ctx;const alerts=warnings(d),label=d.project?'项目分析':'项目人效分析';
-    const tabs=[['overview','管理驾驶舱'],...(!d.project?[['efficiency','人效明细']]:[]),['accounting','核算明细']];
-    const header=`<div class="page-heading manager-page-heading"><div><div class="eyebrow">${d.project?'PROJECT PERFORMANCE':'TALENT PERFORMANCE'} · MANAGER VIEW</div><h1>${label}</h1><p>${d.project?'识别利润与回款风险，找到优先干预的项目':'识别产能、盈利与项目接续风险，支持团队资源决策'}</p></div><div class="heading-actions">${view==='overview'?b('预警规则','manager-rules','',''):''}${b('导入数据','analysis-import',ctx.role==='finance'?'':'disabled')}${b('导出核算数据','export-analysis')}</div></div>`;
+  function projectOverviewCode(d,project){return `<small class="project-overview-code">项目编号：${e(root.ProjectDelivery.info(d.s,project).code)}</small>`;}
+  function projectMissing(d,showCode=false){
+    const rows=d.rows.filter(r=>r.missing.length);
+    return rows.length?`<div class="notice project-missing"><strong>数据缺失 · ${rows.length} 个项目待补齐，成本与利润为试算</strong><details><summary>查看缺失明细</summary><ul>${rows.map(r=>`<li><b>${e(r.entity.name)}</b>${showCode?projectOverviewCode(d,r.entity):''}<ul>${r.selected.filter(x=>reasons(x).length).map(x=>`<li>${e(x.month)}：${reasons(x).map(e).join('；')}</li>`).join('')}</ul></li>`).join('')}</ul></details></div>`:'';
+  }
+  function projectStatusCount(d){
+    const statuses=['进行中','未开始','已结项','售后中','已关闭','未提交','已失效'],counts={};
+    d.rows.forEach(r=>{const status=M.projectStatus(r.entity)||'未维护';counts[status]=(counts[status]||0)+1;if(!statuses.includes(status))statuses.push(status);});
+    return `<div class="metric accent project-count"><span>项目数量</span><strong>${d.rows.length} 个</strong><div class="project-status-counts" aria-label="按项目状态统计">${statuses.map(status=>`<div><span>${e(status)}</span><b>${counts[status]||0}</b></div>`).join('')}</div></div>`;
+  }
+  function projectProfitRanking(d){
+    const valid=d.rows.filter(r=>r.complete&&r.margin!==null).sort((a,b)=>b.margin-a.margin),pending=d.rows.filter(r=>!r.complete||r.margin===null),max=Math.max(.01,...valid.map(r=>Math.abs(r.margin)));
+    return `<section class="panel project-profit-ranking"><div class="panel-head"><div><h2>项目利润率排行</h2><small>${d.cumulative?'累计':'当月'}净利润 ÷ 确认交付金额 · 由高到低</small></div><span class="project-panel-count">${valid.length} 个可排行</span></div><div class="project-profit-list">${valid.length?valid.map((r,i)=>`<div class="project-profit-row"><span class="project-rank-number ${i<3?'top':''}">${i+1}</span><div class="project-rank-info">${b(r.entity.name,'project-detail',`data-id="${e(r.id)}"`,'link')}${projectOverviewCode(d,r.entity)}<small>交付 ${m(r.income)} · 净利润 ${m(r.net)} 元</small><div class="project-profit-track"><i class="${r.margin<0?'loss':''}" style="width:${Math.abs(r.margin)/max*100}%"></i></div></div><b class="${r.margin<0?'negative':'positive'}">${p(r.margin)}</b></div>`).join(''):'<div class="project-overview-empty">当前没有可排行的项目</div>'}</div>${pending.length?`<details class="project-ranking-pending"><summary>待核算 ${pending.length} 个项目</summary>${pending.map(r=>`<div><span>${e(r.entity.name)}${projectOverviewCode(d,r.entity)}</span><small>${r.complete?'确认交付金额为零':e(r.missing.join('；'))}</small></div>`).join('')}</details>`:''}</section>`;
+  }
+  function projectLifecycle(d){
+    const end=new Date(Number(d.month.slice(0,4)),Number(d.month.slice(5,7)),0).getDate(),asof=[d.month+'-'+end,AS_OF].sort()[0],dayDiff=(from,to)=>Math.max(0,Math.round((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000));
+    // Independent, explicitly labelled examples for the overview; accounting stays on the ledger.
+    const demoProject=id=>d.rows.some(r=>r.id===id&&r.entity.name.includes('（示例）'));
+    const exampleEvents=[
+      {kind:'stop',projectId:'p2',date:'2026-11-03',resumedAt:'2026-11-08',reason:'客户组织调整，阶段性交付中止',demo:true},
+      {kind:'refund',projectId:'p2',date:'2026-11-06',amount:6000,status:'已退费',reason:'取消部分服务内容',demo:true},
+      {kind:'refund',projectId:'p1',date:'2026-11-08',amount:12000,status:'审批中',reason:'服务范围调整，申请部分退费',demo:true}
+    ].filter(x=>demoProject(x.projectId));
+    const events=(d.s.projectAnalysisEvents||exampleEvents).filter(x=>d.rows.some(r=>r.id===x.projectId)&&x.date<=asof&&(d.cumulative||x.date.startsWith(d.month)));
+    const projectLink=x=>{const project=d.rows.find(r=>r.id===x.projectId)?.entity;return project?b(project.name,'project-detail',`data-id="${e(x.projectId)}"`,'link')+projectOverviewCode(d,project):'—';};
+    let missingPlan=0;
+    const delayed=d.rows.flatMap(r=>{
+      const project=r.entity,demo=!project.endDate&&r.id==='p1'&&demoProject(r.id),planned=project.endDate||(demo?'2026-10-31':null),completed=project.actualEndDate||project.completedDate;
+      if(!planned){missingPlan++;return [];}
+      const terminal=['已结项','已关闭','已失效'].includes(M.projectStatus(project));
+      if(terminal&&!completed){missingPlan++;return [];}
+      const until=completed&&completed<=asof?completed:asof,days=dayDiff(planned,until);
+      if(!days)return [];
+      return [{projectId:r.id,planned,completed:completed&&completed<=asof?completed:null,days,reason:project.delayReason||(demo?'客户验收时间调整':'—'),demo}];
+    }).sort((a,b)=>b.days-a.days);
+    const stops=events.filter(x=>x.kind==='stop'),activeStops=stops.filter(x=>!x.resumedAt||x.resumedAt>asof),refunds=events.filter(x=>x.kind==='refund'),paid=refunds.filter(x=>x.status==='已退费'),waiting=refunds.filter(x=>x.status==='审批中');
+    const panel=(kind,title,subtitle,stats,headers,rows,note)=>`<section class="panel project-lifecycle project-${kind}"><div class="panel-head"><div><h2>${title}</h2><small>${e(subtitle)}</small></div></div><div class="project-case-stats">${stats.map(([label,value])=>`<div><span>${e(label)}</span><b>${e(value)}</b></div>`).join('')}</div>${rows.length?table(headers,rows):'<div class="project-overview-empty">当前范围暂无相关记录</div>'}<p class="panel-note">${e(note)}</p></section>`;
+    return {
+      delay:panel('delay','项目延期情况','截至 '+asof,[['延期项目',delayed.length+' 个'],['最长延期',delayed.length?Math.max(...delayed.map(x=>x.days))+' 天':'—'],['待补日期',missingPlan+' 个']],['项目','计划结束','延期天数','情况'],delayed.map(x=>[projectLink(x)+(x.demo?'<small>模拟数据</small>':''),e(x.planned),`<b class="negative">${x.days} 天</b>`,badge(x.completed?'已完成':'延期中',x.completed?'success':'warn')+`<small>${e(x.reason)}</small>`]),'计划结束日期早于完成日期或统计截止日时计为延期；未维护计划或实际完成日期的项目待补齐。'),
+      stop:panel('stop','项目中止情况',(d.cumulative?'累计至 ':'当月 · ')+d.month,[['中止记录',stops.length+' 次'],['仍在中止',activeStops.length+' 次'],['已恢复',stops.length-activeStops.length+' 次']],['项目','中止日期','恢复日期','中止原因'],stops.map(x=>[projectLink(x)+(x.demo?'<small>模拟数据</small>':''),e(x.date),x.resumedAt&&x.resumedAt<=asof?e(x.resumedAt):badge('中止中','warn'),e(x.reason||'—')]),'按中止发生日期筛选，已恢复记录保留；中止记录与项目当前状态分别展示。'),
+      refund:panel('refund','项目退费情况',(d.cumulative?'累计至 ':'当月 · ')+d.month,[['退费记录',refunds.length+' 笔'],['已退费',m(add(paid,'amount'))+' 元'],['待审批',m(add(waiting,'amount'))+' 元']],['项目','日期','退费金额（元）','状态 / 原因'],refunds.map(x=>[projectLink(x)+(x.demo?'<small>模拟数据</small>':''),e(x.date),m(x.amount),badge(x.status,x.status==='已退费'?'success':'warn')+`<small>${e(x.reason||'—')}</small>`]),'按退费发生／申请日期筛选，已退费与审批中金额分别汇总。示例记录用于演示，不参与当前核算。')
+    };
+  }
+  function projectOverview(d){
+    const pending=d.rows.filter(r=>!r.complete).length,period=d.cumulative?'截至所选月累计':'所选月',cost=add(d.rows,'cost'),net=add(d.rows,'net');
+    const cards=projectStatusCount(d)
+      +card('合同金额',m(d.rows.reduce((n,r)=>n+r.now.contract,0)),'按项目去重 · 元')
+      +card('回款',m(add(d.rows,'received')),'截至所选月累计回款 · 元')
+      +card('应收',m(d.rows.reduce((n,r)=>n+r.now.receivable,0)),'项目登记应收余额 · 元')
+      +card('确认交付金额',m(add(d.rows,'income')),period+'已确认交付 · 元','accent')
+      +card('总成本',m(cost),pending?`试算 · ${pending} 个项目数据待补齐`:'税费及实际／分摊／预计成本 · 元',pending?'pending':'')
+      +card('净利润',m(net),pending?`试算 · ${pending} 个项目数据待补齐`:'扣除所得税后 · 元',pending?'pending':net<0?'negative':'positive');
+    const lifecycle=projectLifecycle(d);
+    return `<section class="project-summary"><div class="project-summary-heading"><h2>项目统计</h2><span>${e(period+' · '+d.month)}${pending?' · 部分数据待补齐':''}</span></div><div class="metrics project-summary-metrics">${cards}</div></section>${projectMissing(d,true)}<div class="project-overview-grid">${projectProfitRanking(d)}${lifecycle.delay}${lifecycle.stop}${lifecycle.refund}</div>`;
+  }
+  function projectAccounting(d){
+    const period=d.cumulative?'累计至 '+d.month:d.month+' 当月',pending=badge('试算','warn');
+    const amount=(r,value)=>m(value)+(r.complete?'':`<small>${pending}</small>`);
+    const names=(r,role)=>[...new Set(d.s.members.filter(x=>x.projectId===r.id&&x.role===role).map(x=>d.s.people.find(p=>p.id===x.personId)?.name).filter(Boolean))].join(' / ')||'—';
+    const owner=r=>d.s.people.find(x=>x.id===r.entity.ownerId)?.name||'—';
+    const info=r=>root.ProjectDelivery.info(d.s,r.entity);
+    const groups=[
+      {label:'项目基本信息',columns:[
+        ['序号',(r,i)=>i+1],['项目名称',r=>b(r.entity.name,'project-detail',`data-id="${e(r.id)}"`,'link')],
+        ['项目编号',r=>e(info(r).code)],['订单编号',r=>e(info(r).order)],['项目状态',r=>e(M.projectStatus(r.entity))],
+        ['项目所属团队',r=>e(d.teamOf(r.entity))],['项目预计开始时间',r=>e(r.entity.startDate||'—')],['项目预计结束时间',r=>e(r.entity.endDate||'—')],
+        ['项目类型',r=>e(r.entity.type||'—')],['成交方式',r=>e(r.entity.dealMode||'—')],['负责人',r=>e(owner(r))],
+        ['项目经理',r=>e(names(r,'项目经理')==='—'?owner(r):names(r,'项目经理'))],['项目顾问',r=>e(names(r,'咨询师'))]
+      ]},
+      {label:'合同与回款 · 元',columns:[
+        ['合同金额',r=>m(r.now.contract),true],['累计回款',r=>m(r.received),true],['应收账款',r=>m(r.now.receivable),true],
+        ['累计确认交付金额',r=>m(r.delivered),true],['累计交付回款缺口',r=>m(r.cashGap),true]
+      ]},
+      {label:(d.cumulative?'累计':'当月')+'核算 · 元 / %',columns:[
+        ['确认交付金额',r=>m(r.income),true],
+        ...Object.entries({business:'业务成本',management:'管理费',travel:'交通差旅',tax:'税金（3.3%）',accountManager:'大客户经理提成',commission:'项目交付提成',salary:'咨询师工资成本',exception:'项目异常费用',yearBonus:'年终奖分摊',fixed:'固定成本分摊'}).map(([key,label])=>[label,r=>key==='salary'&&r.salaryMissing?amount(r,r.costs[key]):m(r.costs[key]),true]),
+        ['总成本',r=>amount(r,r.cost),true],['税前利润',r=>amount(r,add(r.selected,'pretax')),true],['所得税',r=>amount(r,r.tax),true],
+        ['净利润',r=>`<span class="${r.complete?(r.net<0?'negative':'positive'):''}">${amount(r,r.net)}</span>`,true],
+        ['净利率',r=>p(r.margin),true],['盈亏平衡回款',r=>m(d.cumulative?r.now.cumulative.breakEven:r.now.breakEven),true]
+      ]},
+      {label:'核算期间与投入',columns:[['核算期间',()=>e(period)],['期间投入工时',r=>r.hours+'h',true],['当月投入工时',r=>r.now.hours+'h',true]]},
+      {label:'数据完整性',columns:[
+        ['数据状态',r=>r.complete?badge(d.s.closed[d.month]?'已结快照':'实时试算',d.s.closed[d.month]?'success':'blue'):badge('数据缺失','warn')],
+        ['缺失内容',r=>r.missing.length?r.missing.map(e).join('；'):'—']
+      ]}
+    ];
+    const mode=d.f.projectLedgerSort||'project';
+    const rows=d.rows.slice().sort((a,b)=>mode==='income'?b.income-a.income:mode==='margin'?(b.margin??-Infinity)-(a.margin??-Infinity):mode==='hour'?(b.incomeHour??-Infinity)-(a.incomeHour??-Infinity):0);
+    const columns=groups.flatMap(g=>g.columns);
+    const list=`<div class="project-ledger-scroll" tabindex="0" role="region" aria-label="项目核算总明细表，可横向滚动"><table class="project-ledger"><thead><tr>${groups.map(g=>`<th colspan="${g.columns.length}" scope="colgroup">${e(g.label)}</th>`).join('')}</tr><tr>${columns.map(([label,,num])=>`<th scope="col"${num?' class="num"':''}>${e(label)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map((r,i)=>`<tr>${columns.map(([,value,num])=>`<td${num?' class="num"':''}>${value(r,i)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}">${U.empty('暂无符合条件的项目')}</td></tr>`}</tbody></table></div>`;
+    return `${projectMissing(d)}<section class="panel project-ledger-panel"><div class="panel-head"><div><h2>项目核算总明细表</h2><small>${e(period)} · ${rows.length} 个项目 · 金额单位：元 · 向右滚动查看全部字段</small></div><div class="manager-table-controls"><select data-filter="projectLedgerSort" aria-label="项目排序">${options([{id:'project',name:'按项目顺序'},{id:'income',name:'按交付金额'},{id:'margin',name:'按净利率'},{id:'hour',name:'按小时产出'}],mode)}</select></div></div>${list}<p class="panel-note">合同与应收按项目登记金额；累计回款、累计交付截至所选月。成本、利润及期间投入按当月／累计切换，含历史估算工时；当月投入保留全月已填报口径。缺失数据不按零处理，相关金额标记为试算，净利率及盈亏平衡待补齐后计算。所得税按项目累计利润计税、当月差额回调。</p></section>`;
+  }
+  function render(ctx){
+    const d=data(ctx);d.ctx=ctx;const view=(d.project?ctx.filters.projectManagerView:ctx.filters.personManagerView)==='accounting'?'accounting':'overview',label=d.project?'项目分析':'项目人效分析';
+    const tabs=[['overview',d.project?'项目概览':'人效分析概览'],['accounting','核算明细']];
+    const header=`<div class="page-heading manager-page-heading"><div><div class="eyebrow">${d.project?'PROJECT PERFORMANCE':'TALENT PERFORMANCE'}</div><h1>${label}</h1><p>${d.project?'查看项目规模、经营利润与交付异常情况':'查看人员利润、交付贡献与项目投入表现'}</p></div><div class="heading-actions">${b('导入数据','analysis-import',ctx.role==='finance'?'':'disabled')}${b('导出核算数据','export-analysis')}</div></div>`;
     const nav=`<div class="analysis-view-tabs manager-view-tabs">${tabs.map(([v,t])=>b(t,'manager-view',`data-view="${v}"`,v===view?'active':'')).join('')}</div>`;
-    const contents=view==='accounting'||view==='efficiency'?legacy.render({...ctx,contentOnly:true,filters:{...f,personAnalysisView:view==='efficiency'?'efficiency':'accounting'}}):overview(d,alerts)+alertsView(d,alerts,3)+`<div class="manager-two">${matrix(d)}${trend(d)}</div>`+ranking(d,alerts)+(d.project?'':`<div class="manager-two">${capacity(d)}${bridge(d)}</div>`)+rules(d);
+    const contents=d.project?(view==='accounting'?projectAccounting(d):projectOverview(d)):(view==='accounting'?root.PersonEfficiencyViews.accounting(ctx,d):root.PersonEfficiencyViews.overview(ctx,d));
     return `<div class="manager-dashboard">${header}${filters(d)}${nav}<div class="manager-tab-content" role="tabpanel">${contents}</div></div>`;
   }
   function bridge(d){const comparable=d.rows.filter(r=>r.previous&&!reasons(r.now).length&&!reasons(r.previous).length),excluded=d.rows.length-comparable.length,now=comparable.map(r=>r.now),previous=comparable.map(r=>r.previous),valid=comparable.length>0,costKeys=d.project?['business','management','travel','tax','accountManager','commission','salary','exception','yearBonus','fixed']:['salary','commission','bonus','tax','management'],labels={business:'业务费用',management:'管理费',travel:'差旅',tax:'税费',accountManager:'客户经理提成',commission:'提成',salary:'固定/分摊人工',exception:'异常费用',yearBonus:'年终奖分摊',fixed:'固定成本',bonus:'奖金'};
@@ -83,7 +175,7 @@
   function diagnose(ctx,id){const d=data(ctx),r=d.rows.find(x=>x.id===id);if(!r)return {title:'暂无诊断数据',html:U.empty('请重新选择分析范围')};const alerts=warnings(d).filter(a=>a.entityId===id),costNames={salary:'人工成本',commission:'项目提成',bonus:'人员奖金',tax:'税费',management:'管理费',business:'业务费用',travel:'差旅',accountManager:'大客户经理提成',exception:'异常费用',yearBonus:'年终奖分摊',fixed:'固定分摊'},costs=Object.entries(r.costs).sort((a,b)=>b[1]-a[1]);
     const basic=`<div class="metrics">${card('确认交付',m(r.income),'按当前筛选范围')}${card('税后利润',r.complete?m(r.net):'待补齐',r.complete?'来自统一核算模型':'缺输入，暂不作盈利结论')}${card(d.project?'累计回款缺口':'已过工作日利用率',d.project?m(r.cashGap):p(r.util),d.project?'不等同逾期应收':`${r.hours}h / ${r.standard}h`)}${card(d.project?'项目净利率':'人工投入产出',d.project?p(r.margin):multiple(r.roi),'演示观察线用于提示')}</div>`;
     const tableHTML=d.project?table(['月份','交付金额','项目投入','税后利润','数据状态'],r.history.map(x=>[e(x.month),m(x.income),x.hours+'h',reasons(x).length?'待补齐':m(x.net),reasons(x).length?e(reasons(x).join('；')):'已录输入完整'])):table(['参与项目','交付贡献','实际项目工时','交付占比','核查提示'],r.contributions.map(x=>[e(d.s.projects.find(v=>v.id===x.id)?.name||x.id),m(x.income),x.hours+'h',r.income>0?p(x.income/r.income):'—',(x.income>0&&x.hours===0)||(x.income===0&&x.hours>0)?'收入与工时口径需对照':'—']));
-    return {title:r.entity.name+' · 经营诊断',html:`<div class="manager-diagnosis"><p class="manager-inline-note">${d.cumulative?'累计至':'所选月'} ${d.month} · 数据截至 ${AS_OF} · ${d.cal.partial?'本月未结束，非月末预测':'已完成月度范围'}</p>${basic}${r.missing.length?`<div class="notice"><b>先核查数据：</b>${r.missing.map(e).join('；')}</div>`:''}<h3>预警触发依据</h3><div class="manager-diagnosis-alerts">${alerts.length?alerts.map(a=>alertCard(a)).join(''):badge('当前未触发预警','success')}</div><h3>${d.project?'月度交付与利润轨迹':'项目贡献与投入对应'}</h3>${tableHTML}<h3>当前范围成本构成</h3>${table(['成本项目','金额（元）'],costs.map(([k,v])=>[e(costNames[k]||k),k==='salary'&&r.salaryMissing?'待补齐':m(v)]))}<div class="form-actions">${d.project?b('进入项目成员','project-detail',`data-id="${e(id)}"`):b('查看人效明细','manager-detail-person',`data-id="${e(id)}"`)}${b('核算来源','sources',`data-kind="${d.kind}" data-id="${e(id)}"`,'primary')}</div></div>`};
+    return {title:r.entity.name+' · 经营诊断',html:`<div class="manager-diagnosis"><p class="manager-inline-note">${d.cumulative?'累计至':'所选月'} ${d.month} · 数据截至 ${AS_OF} · ${d.cal.partial?'本月未结束，非月末预测':'已完成月度范围'}</p>${basic}${r.missing.length?`<div class="notice"><b>先核查数据：</b>${r.missing.map(e).join('；')}</div>`:''}<h3>预警触发依据</h3><div class="manager-diagnosis-alerts">${alerts.length?alerts.map(a=>alertCard(a)).join(''):badge('当前未触发预警','success')}</div><h3>${d.project?'月度交付与利润轨迹':'项目贡献与投入对应'}</h3>${tableHTML}<h3>当前范围成本构成</h3>${table(['成本项目','金额（元）'],costs.map(([k,v])=>[e(costNames[k]||k),k==='salary'&&r.salaryMissing?'待补齐':m(v)]))}<div class="form-actions">${d.project?b('进入项目成员','project-detail',`data-id="${e(id)}"`):b('查看核算明细','manager-detail-person',`data-id="${e(id)}"`)}${b('核算来源','sources',`data-kind="${d.kind}" data-id="${e(id)}"`,'primary')}</div></div>`};
   }
   function alertDialog(ctx,level='all'){const d=data({...ctx,filters:{...ctx.filters,alertLevel:level}}),alerts=warnings(d);return {title:(d.project?'项目':'人员')+' · 全部预警',html:'<div class="manager-alert-modal"><p class="manager-inline-note">'+(d.cumulative?'累计至':'所选月')+' '+e(d.month)+' · 当前筛选范围 '+d.entities.length+' 个主体 · 共 '+alerts.length+' 项提示</p>'+alertsView(d,alerts)+'</div>'};}
   root.ProjectManagementInsights={data,warnings,diagnose,alertDialog,render};root.ProjectAnalysis={render};

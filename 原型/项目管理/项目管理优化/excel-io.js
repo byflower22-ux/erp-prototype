@@ -33,7 +33,7 @@
     if(state.closed[month])fail(month+' 已月结，请先反结账');
     if(Object.keys(state.closed).some(m=>m>month))fail('存在后续已结月份，请先反结账后续月份');
   }
-  function amount(state,type,month,r){const collection={salary:'salaries',bonus:'bonuses',commission:'commissions',exception:'expenses',fixed:'expenses'}[type];return state[collection].find(x=>x.month===month&&(!r.personId||r.personId===x.personId)&&(!r.projectId||r.projectId===x.projectId)&&(!['exception','fixed'].includes(type)||x.category===type))?.amount??null;}
+  function amount(state,type,month,r){if(type==='salary')return M.fixedPay(state,r.personId,month).total;const collection={bonus:'bonuses',commission:'commissions',exception:'expenses',fixed:'expenses'}[type];return state[collection].find(x=>x.month===month&&(!r.personId||r.personId===x.personId)&&(!r.projectId||r.projectId===x.projectId)&&(!['exception','fixed'].includes(type)||x.category===type))?.amount??null;}
   function personnelInfo(state){return state.people.map(person=>{const p=profile(person),projectRoles=[...new Set(state.members.filter(member=>member.personId===p.id).map(member=>member.role).filter(Boolean))];return {...p,department:p.department||'未维护部门',projectRoles:projectRoles.length?projectRoles:[p.role||'未分配角色']};});}
   function personnelSelection(state,{roles=[],departments=[]}={}){return personnelInfo(state).filter(p=>(!roles.length||p.projectRoles.some(role=>roles.includes(role)))&&(!departments.length||departments.includes(p.department)));}
   function projectImportRows(state,{teams=[],expenseTypes=[],roles=[]}={}){

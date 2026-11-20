@@ -15,9 +15,8 @@ test('manager calendar exposes no write action',()=>{
   assert.doesNotMatch(html,/data-action="(?:time-new|time-delete|time-ai|time-batch|time-submit-drafts|time-copy-day|time-copy-week)"/);
   assert.match(html,/只读/);
   assert.doesNotMatch(html,/data-action="(?:week-save|week-copy|week-to-day|cell-add)"/);
-  const inputs=html.match(/<input[^>]*data-week-cell[^>]*>/g)||[];
-  assert.ok(inputs.length>0);
-  assert.ok(inputs.every(input=>/\bdisabled\b/.test(input)));
+  assert.doesNotMatch(html,/<input[^>]*data-week-cell/);
+  assert.match(html,/schedule-view-cell/);
 });
 test('personal cumulative contributions link the source month',()=>{
   const c=ctx();c.page='person-analysis';c.filters.periodMode='cumulative';c.filters.analysisPerson='u2';

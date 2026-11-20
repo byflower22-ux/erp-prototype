@@ -8,9 +8,10 @@
   const sources = {
     budget:'原型/预算管理/预算优化/prototype/index.html?erp=1#overview',
     receipt:'原型/付款报销/回单对接/index.html?erp=1',
-    project:'原型/项目管理/项目管理优化/index.html?erp=1&v=20261110-release2'
+    project:'原型/项目管理/项目管理优化/index.html?erp=1&v=20261120-release1'+(performance.getEntriesByType('navigation')[0]?.type==='reload'?'&reload=1':'')
   };
   let requestedModule = null, previousNav = null;
+  let leaveRequest=null,leaveSequence=0;
   let loadingTimer, retryRequest;
   const loading=document.getElementById('erp-loading'),loadingText=document.getElementById('erp-loading-text'),retry=document.getElementById('erp-load-retry');
   function loadFailed(module){
@@ -31,7 +32,13 @@
   function post(module, command) {
     frames[module].contentWindow.postMessage({protocol:'erp-workspace-v1',type:'command',...command}, '*');
   }
-  function command(module, value) {
+  function command(module, value,leaveConfirmed=false) {
+    const active=workspace.tabs.find(tab=>tab.id===workspace.active);
+    if(!leaveConfirmed&&active?.module==='project'&&active.nav==='schedule'&&active.dirty&&module!=='project'){
+      leaveRequest={id:++leaveSequence,module,value};
+      post('project',{action:'prepare-leave',requestId:leaveRequest.id});
+      return;
+    }
     requestedModule = module;
     startLoading(module,value);
     if (!frames[module]) {
@@ -81,6 +88,9 @@
     iterationMarks.update();
   }
   window.addEventListener('message', event => {
+    if(event.source===frames.project?.contentWindow&&event.data?.protocol==='erp-workspace-v1'&&event.data.type==='leave-confirmed'&&leaveRequest?.id===event.data.requestId){
+      const request=leaveRequest;leaveRequest=null;command(request.module,request.value,true);return;
+    }
     if(event.data?.protocol==='erp-workspace-v1'&&event.data.type==='load-error'){
       const module=Object.keys(frames).find(key=>frames[key].contentWindow===event.source);
       if(module)loadFailed(module);
@@ -129,7 +139,8 @@
     document.getElementById('erp-version-marks').schedule();
   });
   window.addEventListener('beforeunload', event => {
-    if (workspace.tabs.some(t=>t.dirty)) {event.preventDefault();event.returnValue='';}
+    // The project prototype handles refresh without a native confirmation dialog.
+    if (workspace.tabs.some(t=>t.dirty&&t.module!=='project')) {event.preventDefault();event.returnValue='';}
   });
   command('project',{action:'navigate',page:'schedule'});
 })();

@@ -25,6 +25,11 @@
   window.addEventListener('message', event => {
     const data = event.data;
     if (!hosted || event.source !== parent || !adapter || data?.protocol !== 'erp-workspace-v1' || data.type !== 'command') return;
+    if(data.action==='prepare-leave'&&adapter.prepareLeave){
+      const proceed=()=>parent.postMessage({protocol:'erp-workspace-v1',type:'leave-confirmed',requestId:data.requestId},'*');
+      if(adapter.prepareLeave(proceed))proceed();
+      return;
+    }
     if (data.action === 'navigate' && typeof data.page === 'string') adapter.navigate(data.page);
     if (['activate','close'].includes(data.action) && typeof data.key === 'string') adapter[data.action](data.key);
     publish();
