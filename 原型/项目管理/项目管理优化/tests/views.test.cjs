@@ -3,9 +3,12 @@ const M=require('../model.js'),sandbox={window:{ProjectModel:M}};vm.createContex
 for(const f of ['ui.js','schedule.js','finance.js','analysis.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',f),'utf8'),sandbox);
 const view=sandbox.window;
 const ctx=()=>({state:M.seed(),month:'2026-11',personId:'u1',role:'finance',filters:{periodMode:'month',date:'2026-11-09',scheduleView:'week'},page:'project-analysis'});
-test('project history starts in February while personal income retains older projects',()=>{
+test('existing projects remain visible while fiscal reporting begins in February',()=>{
   const c=ctx();c.state.projects.find(p=>p.id==='p1').startDate='2026-01-15';
-  assert.doesNotMatch(view.ProjectAnalysis.render(c),/星澜制造/);
+  assert.match(view.ProjectAnalysis.render(c),/星澜制造/);
+  assert.equal(view.ProjectAnalysisScope.period(c).fiscalStart,'2026-02');
+  assert.equal(view.ProjectAnalysisScope.period(c).fiscalEnd,'2027-01');
+  assert.equal(view.ProjectAnalysisScope.period(c).displayMonths[0],'2026-02');
   c.page='person-analysis';c.month='2026-09';c.filters.analysisPerson='u1';
   assert.match(view.ProjectAnalysis.render(c),/星澜制造/);
   assert.equal(M.personResult(c.state,'u1','2026-09').projects.find(p=>p.projectId==='p1').income,60500);

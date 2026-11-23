@@ -5,7 +5,7 @@
   const content=document.getElementById('content'),dialog=document.getElementById('dialog'),body=document.getElementById('dialog-body');
   const currentUserId='u1';
   let state,lastRaw=null,storageProblem='',tabs=[],active=null,role='finance',personId='u1',month='2026-11',mobile=new URLSearchParams(location.search).get('mobile')==='1'||!ERPClient.hosted&&innerWidth<500,mobileHome=new URLSearchParams(location.search).get('mobile')==='1',formDirty=false,dialogSave=null,preview=null,timer,dialogSequence=0;
-  const filters={date:'2026-11-09',scheduleView:'week',project:'all',query:'',financeTab:'data',dataType:'salaries',analysisProject:'all',analysisPerson:'all',analysisRole:'咨询师',analysisTeam:'all',periodMode:'month',status:'all'};
+  const filters={date:'2026-11-09',scheduleView:'week',project:'all',query:'',financeTab:'data',dataType:'salaries',analysisProject:'all',analysisPerson:'all',analysisTeam:'all',periodMode:'month',status:'all'};
   const weekInputs=new Map();
   let scheduleListObserver=null;
   try{
@@ -14,7 +14,7 @@
     if(!state.projects||!state.people||!Number.isInteger(state.revision))throw Error('本地演示数据格式不正确，请重置示例');
   }catch(error){state=M.seed();storageProblem=error.message;}
   if(!storageProblem){
-    const updated=ProjectDeliveryApplications.ensureExample(M.ensurePersonnelExamples(M.ensureScheduleExample(state)));
+    const updated=M.ensureAccountingSnapshots(ProjectDeliveryApplications.ensureExample(M.ensureAnnualPersonnelExamples(M.ensurePersonnelExamples(M.ensureScheduleExample(state)))));
     if(updated!==state)try{persist(updated);}catch(error){storageProblem=error.message;}
   }
   // 旧版 Demo 的未确认工时不作为实际投入，取消草稿后移除，正式记录保留。
@@ -101,6 +101,7 @@
     measure();scheduleListObserver=new ResizeObserver(measure);scheduleListObserver.observe(table);
   }
   function render(){
+    if(!storageProblem){const frozen=M.ensureAccountingSnapshots(state);if(frozen!==state)try{persist(frozen);}catch(error){storageProblem=error.message;}}
     scheduleListObserver?.disconnect();scheduleListObserver=null;
     const page=currentTab()?.nav;if(page==='schedule'&&!scheduleAdmin()){personId=currentUserId;}
     document.body.classList.toggle('mobile-mode',(mobile||matchMedia('(max-width:760px)').matches)&&currentTab()?.nav==='schedule');document.body.classList.toggle('delivery-page',currentTab()?.nav==='projects');
@@ -380,18 +381,18 @@
   function weekDates(date){const d=new Date(date+'T12:00:00'),offset=(d.getDay()+6)%7;return dateRange(addDays(date,-offset),addDays(date,6-offset));}
   function showSources(kind,id,sourceMonth=null){
     if(employee())throw Error('当前身份不能查看核算明细');
-    const cumulative=!sourceMonth&&filters.periodMode==='cumulative'&&['person-analysis','project-analysis'].includes(currentTab()?.nav);
-    const periods=cumulative?state.months.filter(m=>m<=month):[sourceMonth||month];
+    const analysisPage=['person-analysis','project-analysis'].includes(currentTab()?.nav),analysis=analysisPage?ProjectManagementInsights.data(ctx()):null,cumulative=!sourceMonth&&analysis?.cumulative;
+    const selected=analysis?.rows.find(row=>row.id===id),periods=sourceMonth?[sourceMonth]:analysis?(selected?.selected.map(result=>result.month)||[analysis.month]):[month];
     const results=periods.map(period=>kind==='person'?M.personResult(state,id,period):M.projectResult(state,id,period));
     const result=results.reduce((a,r)=>{for(const k of ['income','totalCost','tax','net'])a[k]+=r[k];return a;},{income:0,totalCost:0,tax:0,net:0});
-    const missing=[...new Set(results.flatMap(r=>(r.missing||[]).filter(v=>!v.includes('无法测算'))))];
-    openDialog((kind==='person'?uName(id):pName(id))+' · 核算来源',`<div class="notice info">${esc(periods.join('、'))} · ${cumulative?'累计来源':'当月来源'} · 金额来自同一份底账，已结月份按快照展示。</div><div class="metrics">${card('交付收入',money(result.income),'元')}${card('总成本',money(result.totalCost),'元')}${card('所得税',money(result.tax),'元')}${card('净利润',money(result.net),'元',result.net<0?'negative':'positive')}</div>${missing.length?'<div class="notice">数据不完整：'+missing.map(esc).join('；')+'</div>':''}<div>${results.flatMap(r=>[...(r.sources||[]),...(kind==='person'?[{id:'derived-business-tax-'+r.month,month:r.month,label:'税费＝个人交付金额 × 3.3%',amount:r.costs.tax},{id:'derived-management-'+r.month,month:r.month,label:'管理费＝个人交付金额 × 20%',amount:r.costs.management}]:[]),{id:'derived-income-tax-'+r.month,month:r.month,label:kind==='person'?'个人所得税：当月税前利润 × 15%（亏损为0）':'项目所得税：累计税额减前月累计税额',amount:r.tax}]).map(s=>`<div class="source-line"><div><b>${esc(s.label||s.kind)}</b><small>${esc(s.month)} · ${esc(s.id)}${s.personId?' · '+esc(uName(s.personId)):''}${s.projectId?' · '+esc(pName(s.projectId)):''}</small><small>${esc(s.detail||'')}</small></div><strong>${['times','historicalTimes'].includes(s.kind)?'—':money(s.amount)}</strong></div>`).join('')||U.empty('暂无来源明细')}</div><p class="rule-text">个人盈亏平衡点＝（固定人工＋提成＋奖金）÷［1－（税费＋管理费）÷当月交付金额］。项目工资分摊为派生结果，不再次新增原始成本。</p>`,null,true,'核算分析 · 来源追溯');
+    const missing=analysis&&!sourceMonth&&selected?selected.missing:[...new Set(results.flatMap(r=>analysis?ProjectManagementInsights.resultIssues(state,kind,id,r):(r.missing||[]).filter(v=>!v.includes('无法测算'))))];
+    openDialog((kind==='person'?uName(id):pName(id))+' · 核算来源',`<div class="notice info">${esc(analysis&&!sourceMonth?analysis.periodLabel:periods.join('、'))} · ${cumulative?'年度来源':'当月来源'} · 金额来自同一份底账，已结月份按快照展示。</div><div class="metrics">${card('交付收入',money(result.income),'元')}${card(missing.length?'已知成本合计':'总成本',money(result.totalCost),'元')}${card('所得税',missing.length?'-':money(result.tax),'元')}${card('净利润',missing.length?'-':money(result.net),'元',missing.length?'':result.net<0?'negative':'positive')}</div>${missing.length?'<div class="notice">数据不完整：'+missing.map(esc).join('；')+'</div>':''}<div>${results.flatMap(r=>[...(r.sources||[]),...(kind==='person'?[{id:'derived-business-tax-'+r.month,month:r.month,label:'税费＝个人交付金额 × 3.3%',amount:r.costs.tax},{id:'derived-management-'+r.month,month:r.month,label:'管理费＝个人交付金额 × 20%',amount:r.costs.management}]:[]),{id:'derived-income-tax-'+r.month,month:r.month,label:kind==='person'?'个人所得税：当月税前利润 × 15%（亏损为0）':'项目所得税：累计税额减前月累计税额',amount:r.tax}]).map(s=>`<div class="source-line"><div><b>${esc(s.label||s.kind)}</b><small>${esc(s.month)} · ${esc(s.id)}${s.personId?' · '+esc(uName(s.personId)):''}${s.projectId?' · '+esc(pName(s.projectId)):''}</small><small>${esc(s.detail||'')}</small></div><strong>${['times','historicalTimes'].includes(s.kind)?'—':money(s.amount)}</strong></div>`).join('')||U.empty('暂无来源明细')}</div><p class="rule-text">个人盈亏平衡点＝（固定人工＋提成＋奖金）÷［1－（税费＋管理费）÷当月交付金额］。项目工资分摊为派生结果，不再次新增原始成本。</p>`,null,true,'核算分析 · 来源追溯');
   }
   function correctAmount(collection,id){
     requireFinance();const row=state[collection]?.find(r=>r.id===id);if(!row)throw Error('记录不存在');const revision=state.revision;
     openDialog('核算金额纠错',`<form><div class="notice info">${esc(row.month)} · ${esc(row.id)} · ${esc(row.personId?uName(row.personId):pName(row.projectId))}。保留原值、新值、原因及版本记录。</div><div class="form-grid">${inputField('原金额（元）','oldAmount',row.amount,'number','readonly')}${inputField('新金额（元）','amount',row.amount,'number','min="0" step="0.01" required')}<label class="field wide">修改原因<textarea name="reason" required placeholder="请填写纠错依据"></textarea></label></div>${formActions('保存纠错')}</form>`,()=>{const v=values();requireFinance();persist(M.correctAmount(state,collection,id,Number(v.amount),v.reason,revision));closeDialog(true);render();toast('纠错已保存并记录修订版本');});
   }
-  const typeNames={salary:'月固定人工成本',commission:'项目人员提成',bonus:'人员月度奖金',exception:'项目异常费用',fixed:'项目固定成本分摊'};
+  const typeNames={salary:'月固定人工成本',commission:'项目人员提成',bonus:'人员月度奖金',exception:'项目异常费用',fixed:'项目固定成本分摊',travel:'交通差旅',accountManager:'大客户经理提成'};
   const TEMPLATE_KEY=KEY+'-excel-templates';
   function templateRecords(){
     const records=JSON.parse(localStorage.getItem(TEMPLATE_KEY)||'[]');
@@ -426,10 +427,10 @@
     let pending=null,busy=false;
     const people=scope==='person'?ProjectExcel.personnelInfo(state):[];
     const projectRows=scope==='project'?ProjectExcel.projectImportRows(state):[];
-    const filterTitles=scope==='person'?{roles:'角色',departments:'部门'}:{teams:'所属团队',expenseTypes:'费用类型',roles:'角色'},selectionKeys=Object.keys(filterTitles);
+    const filterTitles=scope==='person'?{departments:'部门'}:{teams:'所属团队',expenseTypes:'费用类型'},selectionKeys=Object.keys(filterTitles);
     const multi=(key,title,items)=>`<div class="analysis-import-filter"><span>${title}</span><details data-import-multi="${key}"><summary>全部${title}</summary><div class="analysis-import-options"><label><input type="checkbox" data-import-choice="${key}" value="all" checked>全部${title}</label>${items.map(item=>`<label><input type="checkbox" data-import-choice="${key}" value="${esc(item)}">${esc(item)}</label>`).join('')}</div></details></div>`;
-    const importFilters=`<div class="analysis-import-filters">${scope==='person'?multi('roles','角色',[...new Set(people.flatMap(p=>p.projectRoles))])+multi('departments','部门',[...new Set(people.map(p=>p.department))]):multi('teams','所属团队',[...new Set(projectRows.map(r=>r.team))])+multi('expenseTypes','费用类型',['项目人员提成','项目异常费用','项目固定成本分摊'])+multi('roles','角色',[...new Set(state.members.map(r=>r.role).filter(Boolean))])}</div>`;
-    openDialog(label+'核算数据导入',`<form id="analysis-import-form"><section class="analysis-import-section" aria-labelledby="import-download-title"><h3 id="import-download-title"><span>1</span>下载模板</h3><div class="analysis-import-controls"><label class="field">所属月份<select name="importMonth">${options(state.months.map(m=>({id:m,name:m})),month)}</select></label></div>${importFilters}<div class="analysis-import-download-row">${button('下载导入模板','analysis-import-template','','primary')}<span>按所选范围生成 Excel</span></div><p class="rule-text">${scope==='project'?'角色仅筛选人员提成；异常费用、固定成本分摊不关联角色。':'同一人员仅一行。'}只填写黄色金额列，空白保持原值，0覆盖为0。</p></section><section class="analysis-import-section analysis-import-upload" aria-labelledby="import-upload-title"><h3 id="import-upload-title"><span>2</span>上传数据</h3><label class="analysis-import-file">上传填写后的模板<input type="file" accept=".xlsx" aria-label="选择填写后的导入模板"></label><div id="analysis-import-preview"><div class="empty">选择 Excel 后预览导入差异</div></div><div id="form-error" class="form-error" role="alert" hidden></div></section><div class="form-actions">${button('取消','dialog-close')}${button('确认导入','dialog-save','disabled','primary')}</div></form>`,()=>{
+    const importFilters=`<div class="analysis-import-filters">${scope==='person'?multi('departments','部门',[...new Set(people.map(p=>p.department))]):multi('teams','所属团队',[...new Set(projectRows.map(r=>r.team))])+multi('expenseTypes','费用类型',['项目人员提成','项目异常费用','项目固定成本分摊','交通差旅','大客户经理提成'])}</div>`;
+    openDialog(scope==='person'?'人员奖金导入':label+'核算数据导入',`<form id="analysis-import-form"><section class="analysis-import-section" aria-labelledby="import-download-title"><h3 id="import-download-title"><span>1</span>下载模板</h3><div class="analysis-import-controls"><label class="field">所属月份<select name="importMonth">${options(state.months.map(m=>({id:m,name:m})),month)}</select></label></div>${importFilters}<div class="analysis-import-download-row">${button('下载导入模板','analysis-import-template','','primary')}<span>按所选范围生成 Excel</span></div><p class="rule-text">${scope==='project'?'':'仅导入奖金，同一人员仅一行。'}只填写黄色金额列，空白保持原值，0覆盖为0。</p></section><section class="analysis-import-section analysis-import-upload" aria-labelledby="import-upload-title"><h3 id="import-upload-title"><span>2</span>上传数据</h3><label class="analysis-import-file">上传填写后的模板<input type="file" accept=".xlsx" aria-label="选择填写后的导入模板"></label><div id="analysis-import-preview"><div class="empty">选择 Excel 后预览导入差异</div></div><div id="form-error" class="form-error" role="alert" hidden></div></section><div class="form-actions">${button('取消','dialog-close')}${button('确认导入','dialog-save','disabled','primary')}</div></form>`,()=>{
       requireFinance();if(busy||!pending)throw Error('请先选择文件并完成校验');
       analysisImportConfirm(pending);closeDialog(true);toast(label+'核算数据已导入，分析已更新');
     },true,'核算数据 · Excel导入');
@@ -456,7 +457,7 @@
         const result=await ProjectExcel.readTemplate(await selected.arrayBuffer(),basis,templateRecords());if(!alive())return;requireFinance();if(state!==basis)throw Error('数据版本已变化，请重新下载模板');
         if(result.scope!==scope)throw Error('请使用'+label+'分析页面下载的专用模板');
         if(result.month!==selectedMonth)throw Error('文件月份与所选月份不一致，请切换月份或重新下载模板');
-        if(selectionStamp(result.selection)!==selectionStamp(selection()))throw Error('文件的'+(scope==='person'?'角色、部门':'所属团队、费用类型、角色')+'范围与当前筛选不一致，请重新下载模板或恢复对应筛选');
+        if(selectionStamp(result.selection)!==selectionStamp(selection()))throw Error('文件的'+(scope==='person'?'部门':'所属团队、费用类型')+'范围与当前筛选不一致，请重新下载模板或恢复对应筛选');
         pending=ProjectExcel.previewWorkbook(state,result,selected.name);
         const rows=pending.groups.flatMap(g=>g.rows.filter(r=>r.kind!=='skip').map(r=>[esc(typeNames[g.type]),esc([r.projectId?pName(r.projectId):'',r.personId?uName(r.personId):''].filter(Boolean).join(' / ')),r.oldValue==null?'无记录':money(r.oldValue),money(r.newValue),esc(r.error||'可导入')]));
         previewBox.innerHTML=`<div class="notice ${pending.errors.length?'':'success'}">${esc(selected.name)} · ${result.month} · ${rows.length} 条金额${pending.errors.length?'，存在错误：'+esc(pending.errors.join('；')):'，核对后确认导入'}</div>${table(['数据类型','人员 / 项目','原金额','导入金额','校验'],rows)}`;
@@ -469,7 +470,7 @@
     requireFinance();
     openDialog('小龙虾 · 核算助手',`<div class="lobster-chat"><p class="chat-caption">对话演示 · 文件在当前浏览器处理 · 支持 2026-09 至 2026-11</p><div id="lobster-history" class="chat" role="log" aria-live="polite"></div><div class="chat-composer"><textarea id="lobster-input" aria-label="发送给龙虾的消息" placeholder="例如：录入2026年11月核算数据；上传后回复“确认导入”"></textarea><div class="chat-composer-actions"><label class="chat-file-picker">选择文件<input id="excel-file" type="file" aria-label="选择发送文件" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>${button('发送','chat-send','','primary')}</div></div></div>`,null,true,'AI ASSISTANT · 纯对话');
     if(!body.querySelector('#lobster-history'))return;
-    if(!chatSession.messages.length)chatSession.messages.push({text:'你好，请告诉我需要录入哪个月份的核算数据。我会直接回复包含全部五类数据的 Excel 附件，共两个 Sheet：人员固定成本（固定人工、奖金）和项目核算数据（提成、异常费用、固定成本分摊）。填好后在这里选择文件并发送。'});
+    if(!chatSession.messages.length)chatSession.messages.push({text:'你好，请告诉我需要录入哪个月份的核算数据。我会直接回复包含全部七类数据的 Excel 附件，共两个 Sheet：人员固定成本（固定人工、奖金）和项目核算数据（提成、异常费用、固定成本分摊、交通差旅、大客户经理提成）。填好后在这里选择文件并发送。'});
     drawChat();
     body.querySelector('[data-action="chat-send"]').onclick=()=>guard(sendChat);
     body.querySelector('#lobster-input').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();guard(sendChat);}};
@@ -505,7 +506,7 @@
         const attachment=await ProjectExcel.createTemplate(basis,period,crypto.randomUUID());
         if(!alive())return;requireFinance();if(state!==basis)throw Error('数据版本已变化，请重新索取模板');
         try{const records=templateRecords().filter(m=>m.revision===basis.revision&&m.stamp===attachment.manifest.stamp);records.push(attachment.manifest);localStorage.setItem(TEMPLATE_KEY,JSON.stringify(records.slice(-30)));}catch(error){throw Error('无法保存模板生成记录：'+error.message);}
-        chatMessage(`这是 ${period} 的核算 Excel，包含全部五类数据。只填写两个 Sheet 的黄色金额列，保存后选择文件发送；人员奖金仅计个人成本。`,{file:attachment});
+        chatMessage(`这是 ${period} 的核算 Excel，包含全部七类数据。只填写两个 Sheet 的黄色金额列，保存后选择文件发送；人员奖金仅计个人成本。`,{file:attachment});
       }else chatMessage('可以输入“录入2026年11月核算数据”索取 Excel，或选择填写后的 .xlsx 文件发送。上传校验后回复“确认导入”或“取消”。本 Demo 使用预设对话规则。');
     }catch(error){if(alive())chatMessage(error.message+'。请调整后重试。');}
     finally{if(alive()){chatSession.busy=false;drawChat();composer.focus();}}
@@ -523,17 +524,13 @@
   function monthReopen(){requireFinance();const revision=state.revision;openDialog(month+' · 反结账',`<form><div class="notice">反结账后可修改本月数据并重新核算。存在更晚已结月份时，须先从后往前反结账，避免覆盖后续快照。</div><label class="field">反结账原因<textarea name="reason" required placeholder="说明调整依据及影响"></textarea></label>${formActions('确认反结账')}</form>`,()=>{requireFinance();persist(M.reopenMonth(state,month,values().reason,revision));closeDialog(true);render();toast('已反结账，请调整后重新试算并月结');});}
   async function exportAnalysis(){
     if(employee())throw Error('当前身份不能导出核算数据');
-    const d=ProjectManagementInsights.data(ctx());
-    if(!d.project){
-      const basis=state,periods=d.cumulative?state.months.filter(period=>period<=month).sort():[month];
-      const people=d.entities.map(person=>ProjectConsultants.profile(person));
-      const file=await ProjectExcel.createPersonnelReport(basis,{months:periods,people,role:d.selectedRole});
-      if(employee())throw Error('当前身份不能导出核算数据');
-      downloadExcel(file);toast('已按模板导出核算Excel');return;
-    }
-    const file=await ProjectExcel.createProjectReport(state,{month,cumulative:d.cumulative,team:d.selectedTeam,rows:d.rows.map(r=>({...r,orderNo:ProjectDelivery.info(state,r.entity).order}))});
+    const context=ctx(),d=ProjectManagementInsights.data(context),snapshot=document.createElement('div');
+    // Render the same ledger so columns, filters, ordering and missing values stay in sync.
+    snapshot.innerHTML=ProjectManagementInsights.render({...context,filters:{...context.filters,projectManagerView:'accounting',personManagerView:'accounting'}});
+    const table=snapshot.querySelector('.project-ledger');if(!table)throw Error('核算明细尚未加载，请刷新后重试');
+    const file=await ProjectExcel.createAccountingReport({...LedgerSort.exportTable(table),title:d.project?'项目核算明细':'项目人效核算明细',period:d.cumulative?d.year+'年累计':d.month,periodLabel:d.periodLabel});
     if(employee())throw Error('当前身份不能导出核算数据');
-    downloadExcel(file);toast('已按模板导出核算Excel');
+    downloadExcel(file);toast('已按核算明细列表导出Excel');
   }
   function openAnalysisDepartmentPicker(){
     const scope=ProjectAnalysisScope.select(ctx()),treeRoot={name:'',path:'',children:new Map()};
@@ -550,9 +547,9 @@
     search.addEventListener('input',draw);tree.addEventListener('click',event=>{const button=event.target.closest('[data-department]');if(!button)return;event.preventDefault();const department=button.dataset.department;closeDialog(true);applyFilter('analysisDepartment',department);});draw();search.focus();
   }
   function openAnalysisPersonPicker(target){
-    const field=target.dataset.field,direct=field==='analysisPerson',form=target.closest('form'),input=target.closest('.analysis-person-form-field')?.querySelector('input');
-    const candidates=direct?ProjectAnalysisScope.select(ctx()).collection:state.people.filter(person=>JSON.parse(target.dataset.candidates||'[]').includes(person.name));
-    const people=candidates.map(ProjectConsultants.profile),selected=direct?filters.analysisPerson:input.value,title=direct?'选择人员':'选择'+field;
+    const field=target.dataset.field,direct=['analysisPerson','analysisProjectManager'].includes(field),form=target.closest('form'),input=target.closest('.analysis-person-form-field')?.querySelector('input');
+    const scope=ProjectAnalysisScope.select(ctx()),candidates=direct?(field==='analysisProjectManager'?scope.projectManagers:scope.collection):state.people.filter(person=>JSON.parse(target.dataset.candidates||'[]').includes(person.name));
+    const people=candidates.map(ProjectConsultants.profile),selected=direct?filters[field]:input.value,title=direct?(field==='analysisProjectManager'?'选择项目经理':'选择人员'):'选择'+field;
     openDialog(title,`<div id="analysis-person-picker"><input type="search" class="analysis-person-search" aria-label="搜索人员" placeholder="输入姓名、工号或部门进行过滤"><div class="analysis-person-tree" role="tree" aria-label="部门人员"></div></div>`,null,false,'');
     dialog.classList.add('analysis-person-dialog');
     const picker=body.querySelector('#analysis-person-picker'),tree=picker.querySelector('.analysis-person-tree'),search=picker.querySelector('input');
@@ -566,7 +563,7 @@
     search.addEventListener('input',draw);
     tree.addEventListener('click',event=>{const choice=event.target.closest('[data-person-id]');if(!choice)return;
       const person=people.find(person=>person.id===choice.dataset.personId);closeDialog(true);
-      if(direct)applyFilter('analysisPerson',person?.id||'all');
+      if(direct)applyFilter(field,person?.id||'all');
       else{input.value=person?.name||'';target.querySelector('span').textContent=person?.name||'全部';filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(form));target.focus({preventScroll:true});}
     });draw();search.focus();
   }
@@ -597,33 +594,36 @@
   function showManagerAlerts(level='all'){const result=ProjectManagementInsights.alertDialog(ctx(),level);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 预警与行动');}
   function showError(error){const el=document.getElementById('form-error'),weekError=content.querySelector('#week-error'),createError=content.querySelector('#delivery-create-error');if(dialog.open&&el){el.textContent=error.message;el.hidden=false;}else if(!dialog.open&&createError){deliveryCreateDraft.error=error.message;createError.textContent=error.message;createError.hidden=false;createError.scrollIntoView({block:'nearest'});}else if(!dialog.open&&weekError){weekError.textContent=error.message;weekError.hidden=false;}else toast(error.message,true);}
   function guard(fn){try{const value=fn();if(value?.catch)value.catch(showError);}catch(error){showError(error);}}
+  const statusFilterConfig=kind=>kind==='data'?{id:'data-status-popover',key:'projectLedgerDataStatuses',legacy:'projectLedgerColumn_数据状态'}:{id:'project-status-popover',key:'projectLedgerStatuses',legacy:'projectLedgerColumn_项目状态'};
+  let statusFilterScrollPositions=new Map();
   function closeProjectStatusFilter(){
-    const popover=content.querySelector('#project-status-popover');if(popover)popover.hidden=true;
-    content.querySelector('[data-action="project-status-open"]')?.setAttribute('aria-expanded','false');
+    content.querySelectorAll('.ledger-status-popover').forEach(popover=>popover.hidden=true);
+    content.querySelectorAll('[data-action="project-status-open"]').forEach(button=>button.setAttribute('aria-expanded','false'));
   }
   function openProjectStatusFilter(target){
-    const popover=content.querySelector('#project-status-popover');if(!popover)return;
-    if(!popover.hidden){closeProjectStatusFilter();return;}
-    const selected=Array.isArray(filters.projectLedgerStatuses)?filters.projectLedgerStatuses:(filters['projectLedgerColumn_项目状态']?[filters['projectLedgerColumn_项目状态']]:[]);
+    const config=statusFilterConfig(target.dataset.kind),popover=content.querySelector('#'+config.id);if(!popover)return;
+    const wasOpen=!popover.hidden;closeProjectStatusFilter();if(wasOpen)return;
+    const selected=Array.isArray(filters[config.key])?filters[config.key]:(filters[config.legacy]?[filters[config.legacy]]:[]);
     popover.querySelectorAll('input').forEach(input=>input.checked=selected.includes(input.value));
+    statusFilterScrollPositions=new Map();for(let node=target.parentElement;node;node=node.parentElement)statusFilterScrollPositions.set(node,[node.scrollLeft,node.scrollTop]);
     popover.hidden=false;target.setAttribute('aria-expanded','true');
     const rect=target.getBoundingClientRect(),box=popover.getBoundingClientRect();
     popover.style.left=Math.max(8,Math.min(rect.left-12,innerWidth-box.width-8))+'px';
     popover.style.top=(rect.bottom+box.height+8<=innerHeight?rect.bottom+8:Math.max(8,rect.top-box.height-8))+'px';
     popover.querySelector('input')?.focus({preventScroll:true});
   }
-  function applyProjectStatusFilter(reset=false){
-    const popover=content.querySelector('#project-status-popover'),scroll=content.querySelector('.project-ledger-scroll'),left=scroll?.scrollLeft||0,top=scroll?.scrollTop||0;
-    filters.projectLedgerStatuses=reset?[]:[...popover.querySelectorAll('input:checked')].map(input=>input.value);
-    delete filters['projectLedgerColumn_项目状态'];if(filters.projectLedgerSearchDraft)delete filters.projectLedgerSearchDraft['projectLedgerColumn_项目状态'];
+  function applyProjectStatusFilter(reset=false,kind='project'){
+    const config=statusFilterConfig(kind),popover=content.querySelector('#'+config.id),scroll=content.querySelector('.project-ledger-scroll'),left=scroll?.scrollLeft||0,top=scroll?.scrollTop||0;
+    filters[config.key]=reset?[]:[...popover.querySelectorAll('input:checked')].map(input=>input.value);
+    delete filters[config.legacy];
     render();const next=content.querySelector('.project-ledger-scroll');if(next){next.scrollLeft=left;next.scrollTop=top;}
-    content.querySelector('[data-action="project-status-open"]')?.focus({preventScroll:true});
+    content.querySelector('[data-action="project-status-open"][data-kind="'+kind+'"]')?.focus({preventScroll:true});
   }
-  content.addEventListener('scroll',event=>{if(!event.target.closest?.('#project-status-popover'))closeProjectStatusFilter();},true);
+  content.addEventListener('scroll',event=>{if(event.target.closest?.('.ledger-status-popover'))return;const previous=statusFilterScrollPositions.get(event.target);if(previous&&previous[0]===event.target.scrollLeft&&previous[1]===event.target.scrollTop)return;closeProjectStatusFilter();},true);
   window.addEventListener('resize',closeProjectStatusFilter);
-  document.addEventListener('keydown',event=>{const popover=content.querySelector('#project-status-popover');if(event.key==='Escape'&&popover&&!popover.hidden){event.preventDefault();closeProjectStatusFilter();content.querySelector('[data-action="project-status-open"]')?.focus({preventScroll:true});}});
+  document.addEventListener('keydown',event=>{const popover=content.querySelector('.ledger-status-popover:not([hidden])');if(event.key==='Escape'&&popover){event.preventDefault();const kind=popover.id==='data-status-popover'?'data':'project';closeProjectStatusFilter();content.querySelector('[data-action="project-status-open"][data-kind="'+kind+'"]')?.focus({preventScroll:true});}});
   document.addEventListener('pointerdown',event=>{
-    if(!event.target.closest('#project-status-popover, [data-action="project-status-open"]'))closeProjectStatusFilter();
+    if(!event.target.closest('.ledger-status-popover, [data-action="project-status-open"]'))closeProjectStatusFilter();
     body.querySelectorAll('#analysis-import-form [data-import-multi][open]').forEach(menu=>{if(!menu.contains(event.target))menu.open=false;});
   });
   document.addEventListener('click',event=>{
@@ -677,7 +677,7 @@
       if(a==='consultant-edit')editConsultant(target.dataset.id);
       if(a==='consultant-monthly-pay')editConsultantMonthlyPay(target.dataset.id);
       if(a==='consultant-detail'){const result=ProjectConsultants.detail(state,target.dataset.id);openDialog(result.title,result.html,null,true,'师资与教练管理 · 咨询师档案');}
-      if(a==='consultant-analysis'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.analysisRole=state.members.some(x=>x.personId===target.dataset.id&&x.role==='咨询师')?'咨询师':'all';filters.personManagerView='overview';navigate('person-analysis');}
+      if(a==='consultant-analysis'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.personManagerView='overview';navigate('person-analysis');}
       if(a==='schedule-logs'&&!mobileSchedule())showScheduleLogs();
       if(a==='schedule-person-open'){if(!scheduleAdmin())throw Error('只有管理员可查看其他人员');switchSchedulePerson(target.dataset.person);}
       if(a==='week-save')saveWeek();
@@ -725,12 +725,10 @@
       if(a==='close-month')monthClose();
       if(a==='reopen-month')monthReopen();
       if(a==='project-status-open')openProjectStatusFilter(target);
-      if(a==='project-status-apply')applyProjectStatusFilter();
-      if(a==='project-status-reset')applyProjectStatusFilter(true);
-      if(a==='project-ledger-reset'){
-        delete filters.projectLedgerStatuses;
-        Object.keys(filters).filter(key=>key.startsWith('projectLedgerColumn_')).forEach(key=>delete filters[key]);
-        delete filters.projectLedgerSearchDraft;delete filters.projectLedgerSearchBy;render();
+      if(a==='project-status-apply')applyProjectStatusFilter(false,target.dataset.kind);
+      if(a==='project-status-reset')applyProjectStatusFilter(true,target.dataset.kind);
+      if(a==='analysis-project-reset'){
+        delete filters.analysisProjectQuery;delete filters.analysisProjectSearchBy;delete filters.analysisProjectSearchDraft;filters.analysisProjectManager='all';render();
       }
       if(a==='ledger-sort'){
         const scope=currentTab()?.nav==='project-analysis'?'project':'person';
@@ -748,7 +746,7 @@
       if(a==='manager-detail-person'){if(dialog.open&&!closeDialog())return;filters.analysisPerson=target.dataset.id;filters.personManagerView='accounting';render();}
       if(a==='export-analysis')return exportAnalysis();
       if(a==='analysis-import')openAnalysisImport();
-      if(a==='reset'){if(!confirm('重置仅影响本次项目管理优化 Demo 的本地数据，确定恢复示例吗？'))return;try{localStorage.removeItem(KEY);localStorage.removeItem(PIN_KEY);localStorage.removeItem(TEMPLATE_KEY);chatSession.messages=[];chatSession.pending=null;weekInputs.clear();lastRaw=null;persist(M.seed(),false);if(dialog.open)closeDialog(true);render();toast('已恢复虚构示例数据');}catch(e){throw Error('重置失败：'+e.message);}}
+      if(a==='reset'){if(!confirm('重置仅影响本次项目管理优化 Demo 的本地数据，确定恢复示例吗？'))return;try{localStorage.removeItem(KEY);localStorage.removeItem(PIN_KEY);localStorage.removeItem(TEMPLATE_KEY);chatSession.messages=[];chatSession.pending=null;weekInputs.clear();lastRaw=null;persist(M.ensureAccountingSnapshots(M.seed()),false);if(dialog.open)closeDialog(true);render();toast('已恢复虚构示例数据');}catch(e){throw Error('重置失败：'+e.message);}}
     });
   }
   function applyFilter(key,value){
@@ -756,11 +754,11 @@
     if(key==='date'&&!value){render();return;}
     if(key==='month'&&!state.months.includes(value)){toast('示例支持 2026-09 至 2026-11',true);render();return;}
     if(key==='month'){month=value;if(!filters.date.startsWith(month))filters.date=state.calendar[month]?.days[0]||month+'-01';}
-    else{filters[key]=value;if(['analysisRole','analysisDepartment'].includes(key))filters.analysisPerson='all';if(key==='analysisTeam')filters.analysisProject='all';if(key==='date'&&value){month=value.slice(0,7);if(!state.months.includes(month)){toast('示例支持 2026-09 至 2026-11，请选择该范围日期',true);month='2026-11';filters.date='2026-11-09';}}}
+    else{filters[key]=value;if(key==='analysisDepartment')filters.analysisPerson='all';if(key==='analysisTeam')filters.analysisProject='all';if(key==='date'&&value){month=value.slice(0,7);if(!state.months.includes(month)){toast('示例支持 2026-09 至 2026-11，请选择该范围日期',true);month='2026-11';filters.date='2026-11-09';}}}
     render();
   }
   document.addEventListener('change',event=>{
-    const el=event.target;if(el.closest('#project-ledger-search')){filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(el.form));return;}if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
+    const el=event.target;if(el.closest('#analysis-project-search')){filters.analysisProjectSearchDraft=Object.fromEntries(new FormData(el.form));return;}if(el.matches('[data-cell-activity]'))setEntryMeta(el.dataset.cellActivity,'activity',el.value);if(el.matches('[data-manager-alert-level]'))guard(()=>showManagerAlerts(el.value));if(el.dataset.filter)guard(()=>applyFilter(el.dataset.filter,el.value));
     if(el.closest('#delivery-create-form'))guard(()=>{
       requireFinance();ProjectDeliveryCreate.capture(el.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';
       if(el.name==='orderNo'){ProjectDeliveryCreate.chooseOrder(state,deliveryCreateDraft);render();}
@@ -777,20 +775,17 @@
   });
   document.addEventListener('click',event=>{const el=event.target.closest('button[data-filter]');if(el){event.preventDefault();guard(()=>applyFilter(el.dataset.filter,el.dataset.value));}});
   content.addEventListener('input',event=>{
-    if(event.target.closest('#project-ledger-search')){filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(event.target.form));return;}
+    if(event.target.closest('#analysis-project-search')){filters.analysisProjectSearchDraft=Object.fromEntries(new FormData(event.target.form));return;}
     if(event.target.id==='mobile-project-search'){filters.mobileProjectPicker.query=event.target.value;content.querySelector('#mobile-project-results').innerHTML=ProjectScheduleMobile.projectOptions(ctx(),event.target.value);return;}
     if(event.target.closest('#delivery-create-form')){ProjectDeliveryCreate.capture(event.target.form,deliveryCreateDraft);deliveryCreateDraft.dirty=true;deliveryCreateDraft.error='';const error=content.querySelector('#delivery-create-error');if(error)error.hidden=true;refreshDeliveryCreate();publish();return;}
     if(event.target.matches('[data-cell-description]')){setEntryMeta(event.target.dataset.cellDescription,'description',event.target.value);return;}
     if(event.target.matches('[data-week-cell]')){setWeekCell(event.target.dataset.weekCell,event.target.value);content.querySelector('#week-error').hidden=true;refreshWeek();return;}
 
   });
-  content.addEventListener('submit',event=>{if(event.target.id==='project-ledger-search'){
+  content.addEventListener('submit',event=>{if(event.target.id==='analysis-project-search'){
     event.preventDefault();guard(()=>{
       const values=Object.fromEntries(new FormData(event.target));
-      Object.keys(filters).filter(key=>key.startsWith('projectLedgerColumn_')).forEach(key=>delete filters[key]);
-      for(const [key,value] of Object.entries(values))if(key.startsWith('projectLedgerColumn_'))filters[key]=value;
-      if(['项目名称','项目编号','订单编号','项目类型'].includes(values.searchBy))filters['projectLedgerColumn_'+values.searchBy]=values.query.trim();
-      filters.projectLedgerSearchBy=values.searchBy;filters.projectLedgerSearchDraft=values;render();
+      filters.analysisProjectSearchBy=values.searchBy;filters.analysisProjectQuery=values.query.trim();filters.analysisProjectSearchDraft=values;render();
     });return;
   }if(event.target.id==='delivery-create-form'){event.preventDefault();guard(saveDeliveryProject);}});
   content.addEventListener('keydown',event=>{

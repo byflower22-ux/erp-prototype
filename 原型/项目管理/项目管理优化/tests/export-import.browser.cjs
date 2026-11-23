@@ -12,12 +12,17 @@ const out=process.env.ERP_QA_OUTPUT||path.join(root,'文档/迭代/在线预览�
   const nav=async key=>{await p.locator(`nav button[data-module="project"][data-page="${key}"]`).click();await p.waitForFunction(key=>document.querySelector('#erp-tabs [aria-current="page"]')?.dataset.tabId==='project:'+key,key);};
   const pass=name=>{checks.push(name);console.log('PASS '+name);};
   const download=async button=>{const pending=p.waitForEvent('download');await button.click();const d=await pending;assert.match(d.suggestedFilename(),/\.xlsx$/);const book=new ExcelJS.Workbook();await book.xlsx.load(fs.readFileSync(await d.path()));return book;};
-  await nav('project-analysis');const project=await download(f.locator('[data-action="export-analysis"]'));
-  const sheet=project.getWorksheet('咨询项目利润明细表');assert.ok(sheet);assert.equal(sheet.columnCount,30);assert.equal(sheet.getCell('A1').value,'咨询项目利润明细表');
-  const seed=M.seed(),row=seed.projects.find(x=>x.name===sheet.getCell('C4').value);assert.ok(row);const result=M.projectResult(seed,row.id,'2026-11');assert.equal(sheet.getCell('H4').value,result.contract);assert.equal(sheet.getCell('K4').value,result.cumulative.income);
-  pass('项目分析实际下载30列Excel，项目及合同和累计交付数据正确');
-  await nav('person-analysis');const personnel=await download(f.locator('[data-action="export-analysis"]'));assert.equal(personnel.worksheets.length,1);const personal=personnel.worksheets[0];assert.equal(personal.columnCount,18);assert.ok(personal.getCell('G4').formula);assert.ok(personal.getCell('B4').value);pass('人员分析实际下载18列Excel，公式和人员数据可读取');
-  await f.locator('[data-filter="periodMode"][data-value="cumulative"]').click();const cumulative=await download(f.locator('[data-action="export-analysis"]'));assert.equal(cumulative.worksheets.length,3);pass('累计人员导出按3个月分Sheet');
+  async function checkLedgerExport(title){
+   await f.locator('[data-action="manager-view"][data-view="accounting"]').click();
+   const expected=await f.locator('.project-ledger').evaluate(table=>({headers:[...table.tHead.rows].at(-1).cells.length,labels:[...[...table.tHead.rows].at(-1).cells].map(c=>c.querySelector('.ledger-sort-button span')?.textContent.trim()||c.textContent.trim()),rows:[...table.tBodies[0].rows].map(r=>[...r.cells].map(c=>c.textContent.trim()))}));
+   const book=await download(f.locator('[data-action="export-analysis"]'));assert.equal(book.worksheets.length,1);const sheet=book.getWorksheet(title);assert.ok(sheet);assert.equal(sheet.columnCount,expected.headers);assert.equal(sheet.getCell('A1').value,title);
+   assert.deepEqual(sheet.getRow(4).values.slice(1),expected.labels);assert.equal(sheet.rowCount,expected.rows.length+4);
+   expected.rows.forEach((row,i)=>row.forEach((value,j)=>{const actual=sheet.getCell(i+5,j+1).value;if(typeof actual==='number'){const numeric=Number(value.replace(/,/g,'').replace(/[%h]$/,''))/(value.endsWith('%')?100:1);assert.ok(Math.abs(actual-numeric)<1e-8,`${i}:${j} ${value}`);}else assert.equal(actual,value||'-');}));
+   assert.match(sheet.getCell('A2').value,/至/);return sheet;
+  }
+  await nav('project-analysis');await checkLedgerExport('项目核算明细');pass('项目导出与当前核算列表的完整字段、顺序、金额及缺失状态一致');
+  await nav('person-analysis');await checkLedgerExport('项目人效核算明细');pass('人员导出与当前核算列表全部数据一致');
+  await f.locator('[data-filter="periodMode"][data-value="cumulative"]').click();const cumulative=await checkLedgerExport('项目人效核算明细');assert.match(cumulative.getCell('A2').value,/2026-02-01/);pass('年度人员导出从2月开始，全年汇总与核算列表一致');
   await f.getByRole('button',{name:'打开AI龙虾分析'}).click();assert.equal(await f.locator('[data-aa="clear"]').count(),0);
   await f.locator('[data-aa="import"]').click();await f.locator('[data-aa="download"]').waitFor();const template=await download(f.locator('[data-aa="download"]').last());
   template.getWorksheet('人员固定成本').getCell('H8').value=11000;

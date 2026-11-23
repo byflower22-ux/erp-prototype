@@ -1,5 +1,5 @@
-/* Project defaults saved from the user export (2026-11-09). */
-window.ERPVersionMarks = {
+/* 用户于2026-11-23导出的完整共享配置；保留原有19项并新增2项项目页面标记。 */
+window["ERPVersionMarks"] = {
   "id": "erp-version-marks",
   "versions": [
     {
@@ -307,6 +307,34 @@ window.ERPVersionMarks = {
       "delivery": "",
       "scope": "menu",
       "selector": "button[data-page=\"consultants\"]",
+      "documents": []
+    },
+    {
+      "id": "mark-mwt3whkh-alt82",
+      "version": "ERP-I006",
+      "type": "improved",
+      "title": "新增收入比例",
+      "page": "projects",
+      "pageLabel": "projects",
+      "description": "",
+      "delivery": "",
+      "scope": "page",
+      "module": "project",
+      "documents": [],
+      "selector": "th:nth-of-type(11)"
+    },
+    {
+      "id": "mark-mwt3x38e-i9d9k",
+      "version": "ERP-I006",
+      "type": "improved",
+      "title": "新增收入比例",
+      "page": "projects",
+      "pageLabel": "projects",
+      "description": "",
+      "delivery": "",
+      "scope": "page",
+      "module": "project",
+      "selector": "button[data-action=\"delivery-application\"]:nth-of-type(2)",
       "documents": []
     }
   ]

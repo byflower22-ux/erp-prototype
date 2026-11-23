@@ -97,13 +97,30 @@
     sources.push({id:'business-tax-'+projectId+'-'+month,label:'交付金额 × 3.3%',kind:'calculation',month,amount:costs.tax,projectId,detail:'业务税费，区别于所得税'});
     return {id:projectId,month,income,costs,totalCost,pretax,tax:0,net:pretax,margin:null,breakEven:missing.length?null:be,hours:hoursFor(state,null,projectId,month),contract:project.contract,received,receivable:project.receivable || 0,missing:unique(missing),sources};
   }
+  const accountingSnapshot=(state,month)=>state.closed[month]||state.accountingSnapshots?.[month]||null;
+  const accountingState=(state,month)=>{const snapshot=accountingSnapshot(state,month);return snapshot?.inputs?{...state,...snapshot.inputs}:state;};
+  const freezeDate=month=>{const [year,m]=month.split('-').map(Number);return (m===12?year+1:year)+'-'+String(m===12?1:m+1).padStart(2,'0')+'-08';};
+  function ensureAccountingSnapshots(state,today){
+    today||=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const due=state.months.filter(month=>freezeDate(month)<=today&&!accountingSnapshot(state,month)).sort();if(!due.length)return state;
+    const n=next(state,'每月8日固化上月核算数据',{months:due,freezeDay:8});n.accountingSnapshots||={};
+    for(const month of due){
+      const projects={},people={};
+      n.projects.filter(p=>p.startDate.slice(0,7)<=month).forEach(p=>projects[p.id]=projectResult(n,p.id,month));
+      n.people.filter(p=>p.joined.slice(0,7)<=month).forEach(p=>people[p.id]=personResult(n,p.id,month));
+      const inputKeys=['projects','people','members','calendar','delivery','receipts','actualCosts','salaries','commissions','bonuses','expenses','ratios','times','historicalTimes'];
+      const inputs=Object.fromEntries(inputKeys.map(key=>[key,copy(n[key])]));
+      n.accountingSnapshots[month]={month,revision:n.revision,closedAt:freezeDate(month)+'T00:00:00+08:00',capturedAt:new Date().toISOString(),automatic:true,rules:copy(RULES),inputs,projects,people};
+    }
+    return n;
+  }
   function projectResult(state, projectId, month) {
     monthOK(state,month);
-    if (state.closed[month]?.projects?.[projectId]) return copy(state.closed[month].projects[projectId]);
+    if (accountingSnapshot(state,month)?.projects?.[projectId]) return copy(accountingSnapshot(state,month).projects[projectId]);
     const current=rawProject(state,projectId,month), cumulativeCosts = Object.fromEntries(Object.keys(current.costs).map(k=>[k,0]));
     let income=0,received=0,totalCost=0,priorPretax=0,cumulativeComplete=true;
     for(const m of state.months.filter(m=>m<=month).sort()) {
-      const r=state.closed[m]?.projects?.[projectId] || rawProject(state,projectId,m);
+      const r=accountingSnapshot(state,m)?.projects?.[projectId] || rawProject(state,projectId,m);
       if(r.missing.length)cumulativeComplete=false;
       income=round(income+r.income); received=round(received+r.received);totalCost=round(totalCost+r.totalCost);
       if(m<month) priorPretax=round(priorPretax+r.pretax);
@@ -117,7 +134,7 @@
   }
   function personResult(state, personId, month) {
     monthOK(state,month);entity(state,'people',personId);
-    if(state.closed[month]?.people?.[personId]) return copy(state.closed[month].people[personId]);
+    if(accountingSnapshot(state,month)?.people?.[personId]) return copy(accountingSnapshot(state,month).people[personId]);
     const missing=[],sources=[],calendar=state.calendar[month],standardHours=calendar?.standardHours || 0;
     if(!standardHours) missing.push('缺少'+month+'考勤标准工时');
     const pay=fixedPay(state,personId,month),salaries=pay.rows,salary=sum(salaries);
@@ -220,7 +237,7 @@
     n.expenses=n.expenses.filter(r=>r.projectId!==projectId||r.month!==month||!['accountManager','yearBonus'].includes(r.category));
     ['accountManager','yearBonus'].forEach(k=>n.expenses.push({id:'expense-'+n.revision+'-'+k,projectId,month,category:k,amount:round(settings.expenses[k])}));return n;
   }
-  const importTypes={salary:{collection:'salaries',person:true},commission:{collection:'commissions',person:true,project:true},bonus:{collection:'bonuses',person:true},exception:{collection:'expenses',project:true,category:'exception'},fixed:{collection:'expenses',project:true,category:'fixed'}};
+  const importTypes={salary:{collection:'salaries',person:true},commission:{collection:'commissions',person:true,project:true},bonus:{collection:'bonuses',person:true},exception:{collection:'expenses',project:true,category:'exception'},fixed:{collection:'expenses',project:true,category:'fixed'},travel:{collection:'actualCosts',project:true,category:'travel'},accountManager:{collection:'expenses',project:true,category:'accountManager'}};
   function hash(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16);}
   function fingerprint(preview){return hash(JSON.stringify({type:preview.type,month:preview.month,revision:preview.revision,rows:preview.rows,errors:preview.errors}));}
   function previewImport(state,type,month,rows){
@@ -307,8 +324,11 @@
     const specs=[
       ['顾清和','B33901','战略咨询部',15500,2500,'项目总监',.55],['陆承远','B33902','战略咨询部',12000,2000,'项目顾问',.35],
       ['程嘉宁','B33903','组织发展部',13000,2200,'方案经理',.55],['苏以棠','B33904','组织发展部',10500,1800,'内训顾问',.35],
-      ['江予辰','B33905','数字化咨询部',14500,2400,'方案支持',.55],['温书禾','B33906','数字化咨询部',11000,1900,'实施交付',.35]
-    ],projects=[['朗岳战略经营提升',330000,[60000,80000,100000]],['知远组织人才发展',240000,[40000,55000,60000]],['新禾数字化流程建设',180000,[45000,35000,24000]]];
+      ['江予辰','B33905','数字化咨询部',14500,2400,'方案支持',.55],['温书禾','B33906','数字化咨询部',11000,1900,'实施交付',.35],
+      ['沈若宁','B33907','战略咨询部',16000,2600,'项目总监',.6],['宋景和','B33908','战略咨询部',11500,1900,'项目经理',.3],
+      ['陈书澜','B33909','组织发展部',13500,2300,'方案经理',.5],['叶知夏','B33910','组织发展部',10000,1700,'业务经理',.4],
+      ['许星遥','B33911','数字化咨询部',15000,2500,'方案支持',.6],['周沐辰','B33912','数字化咨询部',10800,1800,'实施交付',.3]
+    ],projects=[['朗岳战略经营提升',330000,[60000,80000,100000]],['知远组织人才发展',240000,[40000,55000,60000]],['新禾数字化流程建设',180000,[45000,35000,24000]],['远川经营体系升级',280000,[45000,65000,80000]],['景行人才梯队建设',220000,[30000,45000,50000]],['云舟数字运营提升',160000,[40000,20000,30000]]];
     projects.forEach(([name,contract,incomes],i)=>{const id='p-people-demo-'+(i+1);
       if(!s.projects.some(p=>p.id===id))s.projects.push({id,name:name+'（示例）',type:'管理咨询',status:'进行中',ownerId:'people-demo-'+(i*2+1),contract,startDate:'2026-09-01',endDate:'2027-03-31',receivable:contract-incomes.reduce((total,income)=>total+Math.round(income*.7),0),code:'XM20261120000'+(i+1),orderNo:'BS261120000'+(i+1),company:name.slice(0,2)+'有限公司',team:'博商管理咨询',createdAt:'2026-09-01'});
       s.months.forEach((month,index)=>{if(s.closed[month])return;const income=incomes[index]??incomes[incomes.length-1],prefix='people-demo-project-'+i+'-'+month;
@@ -328,15 +348,79 @@
         s.commissions.push({id:prefix+'-commission',personId:id,projectId,month,amount:i<4?800+i*150:600});
         s.bonuses.push({id:prefix+'-bonus',personId:id,month,amount:index===1&&i<3?1200:0});
         if(month==='2026-11'){
-          [2,3,4,5,9].forEach((day,j)=>{const hours=[8,6,7,5,6,4][i],workItemId=j===0?'preparation':j===4?'review':'onsite';s.times.push({id:prefix+'-time-'+day,personId:id,projectId,role:'咨询师',date:month+'-'+String(day).padStart(2,'0'),hours,workItemId,activity:j===0?'项目准备':j===4?'后期复盘':'入企服务',description:'',status:'submitted'});});
-        }else s.historicalTimes.push({id:prefix+'-hours',personId:id,projectId,month,hours:[144,112,128,96,120,88][i]+index*8,source:'历史估算'});
+          [2,3,4,5,9].forEach((day,j)=>{const hours=[8,6,7,5,6,4,7.5,5.5,6.5,4.5,7,3.5][i],workItemId=j===0?'preparation':j===4?'review':'onsite';s.times.push({id:prefix+'-time-'+day,personId:id,projectId,role:'咨询师',date:month+'-'+String(day).padStart(2,'0'),hours,workItemId,activity:j===0?'项目准备':j===4?'后期复盘':'入企服务',description:'',status:'submitted'});});
+        }else s.historicalTimes.push({id:prefix+'-hours',personId:id,projectId,month,hours:[144,112,128,96,120,88,136,104,132,92,124,80][i]+index*8,source:'历史估算'});
       });
     });
-    s.demoFixtures={...s.demoFixtures,personnelAnalysis:1};return s;
+    s.demoFixtures={...s.demoFixtures,personnelAnalysis:2};return s;
   }
   function ensurePersonnelExamples(state){
-    if(state.demoFixtures?.personnelAnalysis===1)return state;
-    return addPersonnelExamples(next(state,'补充人效分析人员示例',{addedPeople:6}));
+    if(state.demoFixtures?.personnelAnalysis===2)return state;
+    const n=addPersonnelExamples(next(state,'补充十五人人效分析示例',{targetPeople:15})),newPeople=new Set(n.people.filter(p=>!state.people.some(old=>old.id===p.id)).map(p=>p.id)),newProjects=new Set(n.projects.filter(p=>!state.projects.some(old=>old.id===p.id)).map(p=>p.id));
+    // Add only the new demonstration records to existing snapshots; saved business records retain their values.
+    for(const month of n.months.slice().sort()){
+      const snapshot=accountingSnapshot(n,month);if(!snapshot?.inputs)continue;
+      for(const key of ['projects','people','members','delivery','receipts','actualCosts','salaries','commissions','bonuses','expenses','ratios','times','historicalTimes']){
+        const added=n[key].filter(row=>key==='people'?newPeople.has(row.id):key==='projects'?newProjects.has(row.id):newPeople.has(row.personId)||newProjects.has(row.projectId));
+        snapshot.inputs[key]||=[];snapshot.inputs[key].push(...copy(added));
+      }
+      const basis=accountingState(n,month);
+      for(const id of newProjects)if(basis.projects.find(p=>p.id===id)?.startDate.slice(0,7)<=month)snapshot.projects[id]=projectResult(basis,id,month);
+      for(const id of newPeople)if(basis.people.find(p=>p.id===id)?.joined.slice(0,7)<=month)snapshot.people[id]=personResult(basis,id,month);
+    }
+    return n;
+  }
+  function ensureAnnualPersonnelExamples(state){
+    if(state.demoFixtures?.annualPersonnel===1)return state;
+    const n=next(state,'补充年度人效模拟数据',{from:'2026-02',to:'2026-11',missingPeople:3}),added={};
+    const append=(key,row)=>{n[key].push(row);(added[key]||=[]).push(row);};
+    const months=Array.from({length:10},(_,i)=>'2026-'+String(i+2).padStart(2,'0'));
+    n.months=unique([...n.months,...months]).sort();
+    for(const month of months){
+      if(!n.calendar[month]){const [year,m]=month.split('-').map(Number),days=[];for(let day=1;day<=new Date(year,m,0).getDate();day++){const date=new Date(year,m-1,day);if(date.getDay()!==0&&date.getDay()!==6)days.push(month+'-'+String(day).padStart(2,'0'));}n.calendar[month]={days,standardHours:days.length*8};}
+    }
+    const demoProjects=n.projects.filter(p=>p.id.startsWith('p-people-demo-'));
+    demoProjects.forEach((project,index)=>{
+      project.startDate='2026-02-01';project.createdAt='2026-02-01';
+      months.filter(month=>month<'2026-09').forEach((month,i)=>{
+        const prefix='annual-personnel-'+project.id+'-'+month,income=round([74000,62000,54000,88000,68000,58000][index]*(.8+i*.045+((index+i)%3)*.07));
+        if(!n.delivery.some(r=>r.projectId===project.id&&r.month===month))append('delivery',{id:prefix+'-delivery',projectId:project.id,month,amount:income,source:'年度人效模拟数据'});
+        if(!n.receipts.some(r=>r.projectId===project.id&&r.month===month))append('receipts',{id:prefix+'-receipt',projectId:project.id,month,amount:round(income*.8),source:'年度人效模拟数据'});
+        ['business','management','travel'].forEach(category=>{if(!n.actualCosts.some(r=>r.projectId===project.id&&r.month===month&&r.category===category))append('actualCosts',{id:prefix+'-'+category,projectId:project.id,month,category,amount:category==='travel'?1200+index*200:round(income*(category==='business'?.04:.08))});});
+        ['accountManager','exception','yearBonus','fixed'].forEach(category=>{if(!n.expenses.some(r=>r.projectId===project.id&&r.month===month&&r.category===category))append('expenses',{id:prefix+'-'+category,projectId:project.id,month,category,amount:{accountManager:1000,exception:0,yearBonus:600,fixed:500}[category]});});
+        const people=unique(n.members.filter(r=>r.projectId===project.id).map(r=>r.personId));
+        people.forEach((personId,j)=>{
+          const ratio=n.ratios.find(r=>r.personId===personId&&r.projectId===project.id)?.ratio??(j===0?.55:.35);
+          if(!n.ratios.some(r=>r.personId===personId&&r.projectId===project.id&&r.month===month))append('ratios',{id:prefix+'-'+personId+'-ratio',projectId:project.id,personId,month,ratio});
+          if(!n.historicalTimes.some(r=>r.personId===personId&&r.projectId===project.id&&r.month===month)&&!n.times.some(r=>r.personId===personId&&r.projectId===project.id&&r.date.startsWith(month)))append('historicalTimes',{id:prefix+'-'+personId+'-hours',projectId:project.id,personId,month,hours:Math.min(n.calendar[month].standardHours,88+index*6+j*10+((i+index)%4)*8),source:'年度人效模拟数据'});
+        });
+      });
+      const income=sum(n.delivery.filter(r=>r.projectId===project.id)),received=sum(n.receipts.filter(r=>r.projectId===project.id));
+      project.contract=Math.max(project.contract,Math.ceil(income/10000)*10000+120000);project.receivable=round(project.contract-received);
+    });
+    for(const person of n.people){
+      if(person.id==='u3')continue;
+      for(const month of months.filter(month=>month>=person.joined.slice(0,7))){
+        const prefix='annual-personnel-'+person.id+'-'+month;
+        const projects=unique(n.members.filter(r=>r.personId===person.id&&n.projects.some(p=>p.id===r.projectId&&p.startDate.slice(0,7)<=month)).map(r=>r.projectId));
+        projects.forEach(projectId=>{if(!n.commissions.some(r=>r.personId===person.id&&r.projectId===projectId&&r.month===month))append('commissions',{id:prefix+'-'+projectId+'-commission',personId:person.id,projectId,month,amount:projectId.startsWith('p-people-demo-')?700+Number(person.id.split('-').at(-1))*40:0,source:'年度人效模拟数据'});});
+        // Keep two incomplete annual examples alongside the original missing-data person.
+        const missingBonus=month==='2026-06'&&['people-demo-11','people-demo-12'].includes(person.id);
+        if(!missingBonus&&!n.bonuses.some(r=>r.personId===person.id&&r.month===month))append('bonuses',{id:prefix+'-bonus',personId:person.id,month,amount:month==='2026-05'&&person.id.startsWith('people-demo-')?1600:0,source:'年度人效模拟数据'});
+      }
+    }
+    // Enrich saved demo snapshots with new example inputs, retaining all existing input rows.
+    for(const month of n.months){
+      const snapshot=accountingSnapshot(n,month);if(!snapshot?.inputs)continue;
+      snapshot.inputs.calendar={...copy(n.calendar),...snapshot.inputs.calendar};
+      snapshot.inputs.projects=snapshot.inputs.projects.map(p=>{const updated=demoProjects.find(project=>project.id===p.id);return updated?{...p,startDate:updated.startDate,createdAt:updated.createdAt,contract:updated.contract,receivable:updated.receivable}:p;});
+      for(const [key,rows] of Object.entries(added)){snapshot.inputs[key]||=[];for(const row of rows)if(!snapshot.inputs[key].some(r=>r.id===row.id))snapshot.inputs[key].push(copy(row));}
+      for(const project of demoProjects)delete snapshot.projects[project.id];
+      for(const person of n.people)delete snapshot.people[person.id];
+    }
+    // Rebuild only derived example results in chronological order after backfilling inputs.
+    for(const month of n.months){const snapshot=accountingSnapshot(n,month);if(!snapshot?.inputs)continue;const basis=accountingState(n,month);for(const project of demoProjects)snapshot.projects[project.id]=projectResult(basis,project.id,month);for(const person of n.people.filter(p=>p.joined.slice(0,7)<=month))snapshot.people[person.id]=personResult(basis,person.id,month);}
+    n.demoFixtures={...n.demoFixtures,annualPersonnel:1};return n;
   }
   function seed(){
     const s={revision:1,months:['2026-09','2026-10','2026-11'],projects:[{id:'p1',team:'博商咨询管理',name:'星澜制造数字化咨询（示例）',type:'管理咨询',status:'进行中',ownerId:'u1',contract:480000,startDate:'2026-09-01',receivable:330000},{id:'p2',name:'青禾零售组织升级（示例）',type:'组织咨询',status:'进行中',ownerId:'u2',contract:300000,startDate:'2026-09-01',receivable:230000},{id:'p3',name:'云岑新项目筹备（示例）',type:'专项咨询',status:'筹备中',ownerId:'u3',contract:180000,startDate:'2026-11-01',receivable:180000}],people:[{id:'u1',name:'林予安',joined:'2024-03-01',role:'项目经理'},{id:'u2',name:'周知行',joined:'2025-01-06',role:'咨询师'},{id:'u3',name:'许映舟',joined:'2026-09-01',role:'咨询师'}],members:[{projectId:'p1',personId:'u1',role:'项目经理'},{projectId:'p1',personId:'u2',role:'咨询师'},{projectId:'p2',personId:'u1',role:'咨询师'},{projectId:'p2',personId:'u2',role:'项目经理'},{projectId:'p2',personId:'u3',role:'咨询师'},{projectId:'p3',personId:'u3',role:'项目经理'}],calendar:{},delivery:[],receipts:[],actualCosts:[],salaries:[],commissions:[],bonuses:[],expenses:[],ratios:[],times:[],historicalTimes:[],batches:[],closed:{},audit:[]};
@@ -368,7 +452,7 @@
     }
     for(let day=2;day<=5;day++)for(const person of s.people){const projectId=person.id==='u3'?'p2':'p1',member=s.members.find(x=>x.projectId===projectId&&x.personId===person.id);add('times',{personId:person.id,projectId,role:member.role,date:'2026-11-0'+day,hours:6,workItemId:day===2?'preparation':day===5?'review':'onsite',activity:day===2?'项目准备':day===5?'后期复盘':'入企服务',description:day===2?'准备访谈提纲':day===5?'整理交付反馈':'现场调研与访谈',start:'09:00',end:'15:00',status:'submitted'});}
     s.people.forEach(p=>Object.assign(p,{fixedSalary:{u1:15000,u2:12000,u3:9000}[p.id],fixedBenefits:{u1:3000,u2:2000,u3:2000}[p.id]}));
-    return addPersonnelExamples(addScheduleExample(s));
+    return ensureAnnualPersonnelExamples(addPersonnelExamples(addScheduleExample(s)));
   }
-  return {round,projectStatus,seed,ensureScheduleExample,ensurePersonnelExamples,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay};
+  return {round,projectStatus,accountingSnapshot,accountingState,ensureAccountingSnapshots,seed,ensureScheduleExample,ensurePersonnelExamples,ensureAnnualPersonnelExamples,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay};
 });

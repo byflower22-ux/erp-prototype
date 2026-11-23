@@ -24,5 +24,13 @@
       return (order.direction==='desc'?-compared:compared)||a.index-b.index;
     }).map(x=>x.row);
   }
-  root.LedgerSort={headers,sort};
+  function exportTable(table){
+    const headings=[...table.tHead.rows],leaf=headings.at(-1);
+    const columns=[...leaf.cells].map(cell=>{
+      const copy=cell.cloneNode(true);copy.querySelectorAll('.ledger-sort-arrows,svg').forEach(el=>el.remove());
+      return {label:copy.textContent.trim(),numeric:cell.classList.contains('num')};
+    });
+    return {columns,groups:headings.length>1?[...headings[0].cells].map(cell=>({label:cell.textContent.trim(),span:cell.colSpan})):[],rows:[...table.tBodies[0].rows].filter(row=>row.cells.length===columns.length&&!row.cells[0].hasAttribute('colspan')).map(row=>[...row.cells].map(cell=>cell.textContent.trim()))};
+  }
+  root.LedgerSort={headers,sort,exportTable};
 })(window);

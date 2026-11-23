@@ -1,18 +1,32 @@
 (function(root){
   'use strict';
+  const fiscalYear=month=>String(Number(month.slice(0,4))-(month.slice(5,7)==='01'?1:0));
+  function analysisPeriod(ctx){
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),current=today.slice(0,7),annual=ctx.filters?.periodMode==='cumulative',year=annual?(ctx.filters?.analysisYear||fiscalYear(current)):fiscalYear(ctx.month);
+    const fiscalStart=year+'-02',fiscalEnd=String(Number(year)+1)+'-01',available=ctx.state.months.filter(month=>month>=fiscalStart&&month<=fiscalEnd&&month<=current).sort(),month=annual?(available.at(-1)||fiscalEnd):ctx.month;
+    const displayMonths=[];let cursor=fiscalStart;while(cursor<=month&&cursor<=fiscalEnd){displayMonths.push(cursor);const [y,m]=cursor.split('-').map(Number);cursor=(m===12?y+1:y)+'-'+String(m===12?1:m+1).padStart(2,'0');}
+    const years=[...new Set([fiscalYear(current),...ctx.state.months.map(fiscalYear)])].sort().reverse();
+    const monthEnd=month+'-'+String(new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).getDate()),cutoffDate=monthEnd<today?monthEnd:today,periodStart=annual?fiscalStart:month,periodRange=periodStart+'-01 至 '+cutoffDate;
+    return {month,year,years,fiscalStart,fiscalEnd,displayMonths,periodStart,periodRange,cutoffDate,today,periodLabel:annual?year+' 年度 · '+periodRange:month+' 当月 · '+periodRange,annual};
+  }
   const scope=ctx=>{
-    const {state:s,month,filters:f={}}=ctx,project=ctx.page==='project-analysis';
-    const projects=s.projects.filter(x=>x.startDate>='2026-02-01'&&x.startDate.slice(0,7)<=month),members=s.members.filter(x=>projects.some(p=>p.id===x.projectId));
+    ctx={...ctx,...analysisPeriod(ctx)};
+    const {month,filters:f={}}=ctx,s=root.ProjectModel.accountingState(ctx.state,month),project=ctx.page==='project-analysis';
+    const projects=s.projects.filter(x=>[x.startDate,x.createdAt].filter(Boolean).some(date=>date.slice(0,7)<=month)),members=s.members.filter(x=>projects.some(p=>p.id===x.projectId));
     const teamOf=p=>root.ProjectDelivery?.info(s,p).team||p.team||'博商管理咨询';
     const roles=[...new Set(['项目总监','项目经理','项目顾问','方案经理','业务经理','内训顾问','方案支持','实施交付','咨询师',...members.map(x=>x.role).filter(Boolean)])],teams=[...new Set(projects.map(teamOf))];
-    const selectedRole=f.analysisRole||'咨询师',selectedTeam=f.analysisTeam||'all',selectedDepartment=f.analysisDepartment||'all';
+    const selectedRole='all',selectedTeam=f.analysisTeam||'all',selectedDepartment=f.analysisDepartment||'all';
     const departmentOf=person=>String(root.ProjectConsultants?.profile(person).department||person.department||'未分配部门').split(/\s*[/／]\s*/).filter(Boolean).join('/');
     const departments=[...new Set(s.people.filter(person=>person.joined.slice(0,7)<=month).map(departmentOf))];
-    const collection=project?projects.filter(x=>selectedTeam==='all'||teamOf(x)===selectedTeam):s.people.filter(x=>x.joined.slice(0,7)<=month&&(selectedDepartment==='all'||departmentOf(x)===selectedDepartment||departmentOf(x).startsWith(selectedDepartment+'/'))&&(selectedRole==='all'||members.some(v=>v.personId===x.id&&v.role===selectedRole)));
-    const selection=(project?f.analysisProject:f.analysisPerson)||'all',entities=selection==='all'?collection:collection.filter(x=>x.id===selection);
-    return {project,collection,entities,selection,roles,teams,selectedRole,selectedTeam,selectedDepartment,departments,departmentOf,teamOf,members};
+    const managersOf=p=>{const ids=[...new Set(members.filter(x=>x.projectId===p.id&&x.role==='项目经理'&&s.people.some(person=>person.id===x.personId)).map(x=>x.personId))];return ids.length?ids:[p.ownerId].filter(Boolean);};
+    const projectManagers=s.people.filter(person=>projects.some(p=>managersOf(p).includes(person.id)));
+    const selectedManager=f.analysisProjectManager||'all',query=String(f.analysisProjectQuery||'').trim().toLocaleLowerCase();
+    const searchValue=p=>{const info=root.ProjectDelivery?.info(s,p)||{};return ({'项目名称':p.name,'项目编号':info.code,'订单编号':info.order,'项目类型':p.type})[f.analysisProjectSearchBy||'项目名称']||'';};
+    const collection=project?projects.filter(x=>(selectedTeam==='all'||teamOf(x)===selectedTeam)&&(selectedManager==='all'||managersOf(x).includes(selectedManager))&&(!query||String(searchValue(x)).toLocaleLowerCase().includes(query))):s.people.filter(x=>x.joined.slice(0,7)<=month&&(selectedDepartment==='all'||departmentOf(x)===selectedDepartment||departmentOf(x).startsWith(selectedDepartment+'/')));
+    const selection=project?'all':f.analysisPerson||'all',entities=selection==='all'?collection:collection.filter(x=>x.id===selection);
+    return {project,collection,entities,selection,roles,teams,selectedRole,selectedTeam,selectedDepartment,departments,departmentOf,teamOf,members,projectManagers,selectedManager};
   };
-  root.ProjectAnalysisScope={select:scope};
+  root.ProjectAnalysisScope={select:scope,period:analysisPeriod};
   const projectCosts={business:'业务费用 · 实际',management:'管理费用 · 实际',travel:'差旅费用 · 实际',tax:'税费 3.3%',accountManager:'大客户经理提成 · 预计',commission:'项目提成',salary:'项目人工 · 分摊',exception:'例外费用 · 预计',yearBonus:'年终奖分摊 · 预计',fixed:'固定费用 · 预计'};
   const personCosts={salary:'固定人工',commission:'提成',bonus:'奖金',tax:'税费 3.3%',management:'管理费 20%'};
   const sum=(rows,key)=>rows.reduce((n,r)=>n+Number(r[key]||0),0);
