@@ -1,13 +1,18 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const M=require('../model.js');
 function views(){const box={window:{ProjectModel:M}};vm.createContext(box);for(const file of ['ui.js','analysis.js','ledger-sort.js','management.js','person-insights.js','consultants.js','delivery.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),box);return box.window;}
-test('fixed pay changes take effect by month and retain previous defaults and manual overrides',()=>{
+test('fixed pay changes replace later monthly overrides and keep values before the effective month',()=>{
  let s=M.seed();s.closed={};s.accountingSnapshots={};s.salaries=s.salaries.filter(r=>r.personId!=='u3');
- s=M.saveMonthlyFixedPay(s,'u3',[{month:'2026-11',salary:12000,benefits:2500}]);
+ s=M.saveMonthlyFixedPay(s,'u3',[{month:'2026-10',salary:9000,benefits:2000},{month:'2026-11',salary:12000,benefits:2500}]);
+ s.salaries.push({id:'future-override',personId:'u3',month:'2027-01',salaryAmount:15000,benefitsAmount:3000,amount:18000});
+ s.people.find(p=>p.id==='u3').fixedPayVersions=[{effectiveMonth:'0001-01',salary:9000,benefits:2000},{effectiveMonth:'2027-01',salary:30000,benefits:4000}];
  const n=M.saveFixedPayDefaults(s,'u3',{salary:20000,benefits:3000,effectiveMonth:'2026-11'});
  assert.equal(M.fixedPay(n,'u3','2026-10').total,11000);
- assert.equal(M.fixedPay(n,'u3','2026-11').total,14500);
+ assert.equal(M.fixedPay(n,'u3','2026-11').total,23000);
  assert.equal(M.fixedPay(n,'u3','2026-12').total,23000);
+ assert.equal(M.fixedPay(n,'u3','2027-01').total,23000);
+ assert.equal(M.fixedPay(s,'u3','2026-11').total,14500);
+ assert.deepEqual(n.salaries.filter(r=>r.personId!=='u3'),s.salaries.filter(r=>r.personId!=='u3'));
  assert.equal(M.fixedPay(s,'u3','2026-12').total,11000);
  assert.throws(()=>M.saveFixedPayDefaults(s,'u3',{salary:1,benefits:2,effectiveMonth:''}),/生效/);
 });

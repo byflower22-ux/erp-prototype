@@ -52,9 +52,12 @@
     if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(effectiveMonth||''))fail('请选择固定人工生效月份');
     if(!amountOK(salary)||!amountOK(benefits))fail('固定工资和社保公积金须为非负金额');
     if([...Object.keys(state.closed||{}),...Object.keys(state.accountingSnapshots||{})].some(month=>month>=effectiveMonth))fail('生效月份涉及已固化数据，请选择未锁定月份');
-    const n=next(state,'修改固定人工默认配置',{personId,salary,benefits,effectiveMonth}),p=entity(n,'people',personId);
+    const replacedMonthly=state.salaries.filter(row=>row.personId===personId&&row.month>=effectiveMonth);
+    const replacedVersions=(person.fixedPayVersions||[]).filter(row=>row.effectiveMonth>=effectiveMonth);
+    const n=next(state,'修改固定人工默认配置',{personId,salary,benefits,effectiveMonth,replacedMonthly,replacedVersions}),p=entity(n,'people',personId);
     const versions=p.fixedPayVersions||[{effectiveMonth:'0001-01',salary:person.fixedSalary,benefits:person.fixedBenefits}];
-    p.fixedPayVersions=[...versions.filter(row=>row.effectiveMonth!==effectiveMonth),{effectiveMonth,salary:round(salary),benefits:round(benefits)}].sort((a,b)=>a.effectiveMonth.localeCompare(b.effectiveMonth));
+    p.fixedPayVersions=[...versions.filter(row=>row.effectiveMonth<effectiveMonth),{effectiveMonth,salary:round(salary),benefits:round(benefits)}].sort((a,b)=>a.effectiveMonth.localeCompare(b.effectiveMonth));
+    n.salaries=n.salaries.filter(row=>row.personId!==personId||row.month<effectiveMonth);
     p.fixedSalary=round(salary);p.fixedBenefits=round(benefits);return n;
   }
   function fixedPay(state,personId,month){

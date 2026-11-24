@@ -1,7 +1,9 @@
 """Build the ERP-I005 Word review copy from the maintained Markdown source."""
 from pathlib import Path
+from copy import deepcopy
 import re
 from urllib.parse import quote
+from zipfile import ZipFile
 
 from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
@@ -10,12 +12,14 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from lxml import etree
 
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "文档/迭代/项目管理优化"
 SOURCE = BASE / "详细需求说明.md"
 OUTPUT = BASE / "项目管理优化详细需求说明_V1.0.docx"
+USER_BASELINE = BASE / "来源资料/用户修订需求基线_2026-11-24.docx"
 WIDTH = 6.9
 
 
@@ -136,6 +140,10 @@ def table(doc, rows):
         weights = [.55, 1.4, 1.1, 1.65, 2.2]
     elif cols == 4:
         weights = [.65, 1.45, 2.45, 2.35] if rows[0][0] in ("序号", "当月序号") else [1.2, 1.8, 2.0, 1.9]
+    elif cols == 2:
+        weights = [1.65, 5.25]
+    elif cols == 3 and rows[0][0] == "序号及字段":
+        weights = [1.6, 3.35, 1.95]
     elif cols == 3:
         weights = [.55, 2.8, 3.55] if rows[0][0] == "编号" else [1.4, 2.4, 3.1]
     else:
@@ -179,7 +187,63 @@ def table(doc, rows):
     p.paragraph_format.line_spacing = Pt(3)
 
 
+def build_from_user_baseline():
+    """Replace only chapters 5 and 6; keep the user's other XML parts intact."""
+    source = SOURCE.read_text(encoding="utf-8")
+    module_text = re.search(r"^## 5\. 项目分析\n.*", source, re.M | re.S)
+    if module_text is None or "## 6. 项目人效分析" not in module_text.group(0):
+        raise ValueError("项目分析及人效分析章节缺失")
+    generated = Document(USER_BASELINE)
+    for child in list(generated.element.body):
+        if child.tag != qn("w:sectPr"):
+            generated.element.body.remove(child)
+    lines = module_text.group(0).splitlines()
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx].strip()
+        if not line:
+            idx += 1
+            continue
+        if line.startswith("|"):
+            rows = []
+            while idx < len(lines) and lines[idx].startswith("|"):
+                cells = [v.strip() for v in re.split(r"(?<!\\)\|", lines[idx])[1:-1]]
+                if not all(re.fullmatch(r":?-+:?", v) for v in cells):
+                    rows.append(cells)
+                idx += 1
+            table(generated, rows)
+            continue
+        match = re.match(r"^(#{2,4})\s+(.+)$", line)
+        paragraph = generated.add_paragraph(
+            style="Heading " + str(len(match[1]) - 1) if match else "Normal"
+        )
+        inline(paragraph, match[2] if match else line)
+        idx += 1
+    nodes = [deepcopy(child) for child in generated.element.body if child.tag != qn("w:sectPr")]
+    with ZipFile(USER_BASELINE) as original:
+        xml = etree.fromstring(original.read("word/document.xml"))
+        body = xml.find(qn("w:body"))
+        children = list(body)
+        namespaces = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        start = next(i for i, child in enumerate(children)
+                     if "".join(child.xpath(".//w:t/text()", namespaces=namespaces)) == "5. 项目分析")
+        end = next((i for i in range(start + 1, len(children))
+                    if children[i].tag == qn("w:sectPr")), len(children))
+        for child in children[start:end]:
+            body.remove(child)
+        for offset, child in enumerate(nodes):
+            body.insert(start + offset, child)
+        replacement = etree.tostring(xml, xml_declaration=True, encoding="UTF-8", standalone=True)
+        with ZipFile(OUTPUT, "w") as result:
+            for entry in original.infolist():
+                result.writestr(entry, replacement if entry.filename == "word/document.xml" else original.read(entry.filename))
+    print(OUTPUT)
+
+
 def build():
+    if USER_BASELINE.exists():
+        build_from_user_baseline()
+        return
     lines = SOURCE.read_text(encoding="utf-8").splitlines()
     doc = Document()
     setup(doc)
