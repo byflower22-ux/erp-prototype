@@ -13,7 +13,7 @@
     for(const change of changes)for(const row of [change.before,change.after])if(row){const reason=deadlineReason(row.date,isAdmin,now);if(reason)throw Error(reason);}
   }
   function controls(c){
-    return `<section class="schedule-access-bar" aria-label="日程人员"><div class="schedule-access-fields">${c.scheduleAdmin?`<label>人员<select id="schedule-access-person">${options(c.state.people,c.personId)}</select></label>`:`<span class="schedule-current-person">${e(c.state.people.find(p=>p.id===c.currentUserId)?.name||'本人')}</span>`}</div>${c.mobile?'':b('操作日志','schedule-logs','','schedule-log-button')}</section>`;
+    return `<section class="schedule-access-bar" aria-label="日程人员"><div class="schedule-access-fields">${c.scheduleAdmin?`<label class="analysis-person-filter">人员 <button type="button" id="schedule-access-person" class="analysis-team-trigger analysis-person-trigger" data-action="analysis-person-picker" data-field="schedulePerson" aria-label="选择日程人员" aria-haspopup="dialog"><span>${e(c.state.people.find(p=>p.id===c.personId)?.name||'选择人员')}</span><span aria-hidden="true">⌄</span></button></label>`:`<span class="schedule-current-person">${e(c.state.people.find(p=>p.id===c.currentUserId)?.name||'本人')}</span>`}</div>${c.mobile?'':b('操作日志','schedule-logs','','schedule-log-button')}</section>`;
   }
   function changes(before,after,actor){
     const prev=new Map(before.times.map(r=>[r.id,r])),next=new Map(after.times.map(r=>[r.id,r])),rows=[],at=new Date().toISOString();

@@ -40,17 +40,34 @@
   function hoursFor(state, personId, projectId, month) {
     return round(state.times.filter(r => r.status === 'submitted' && r.date.slice(0,7) === month && (!personId || r.personId === personId) && (!projectId || r.projectId === projectId)).reduce((n,r)=>n+Number(r.hours),0) + state.historicalTimes.filter(r=>r.month === month && (!personId || r.personId===personId) && (!projectId || r.projectId===projectId)).reduce((n,r)=>n+Number(r.hours),0));
   }
+  const personInAccountingCycle=(person,month)=>month>=String(person.joined||'0001-01').slice(0,7)&&month>=String(person.joined||'0001-01').slice(0,7)&&month>=String(person.accountingStart||person.joined||'0001-01').slice(0,7)&&(!person.accountingEnd||month<=person.accountingEnd);
+  function defaultFixedPay(person,month){
+    const versions=person.fixedPayVersions;
+    if(!versions?.length)return {salary:person.fixedSalary,benefits:person.fixedBenefits};
+    const value=versions.filter(row=>row.effectiveMonth<=month).sort((a,b)=>a.effectiveMonth.localeCompare(b.effectiveMonth)).at(-1);
+    return {salary:value?.salary,benefits:value?.benefits};
+  }
+  function saveFixedPayDefaults(state,personId,{salary,benefits,effectiveMonth},expectedRevision=state.revision){
+    version(state,expectedRevision);const person=entity(state,'people',personId);
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(effectiveMonth||''))fail('请选择固定人工生效月份');
+    if(!amountOK(salary)||!amountOK(benefits))fail('固定工资和社保公积金须为非负金额');
+    if([...Object.keys(state.closed||{}),...Object.keys(state.accountingSnapshots||{})].some(month=>month>=effectiveMonth))fail('生效月份涉及已固化数据，请选择未锁定月份');
+    const n=next(state,'修改固定人工默认配置',{personId,salary,benefits,effectiveMonth}),p=entity(n,'people',personId);
+    const versions=p.fixedPayVersions||[{effectiveMonth:'0001-01',salary:person.fixedSalary,benefits:person.fixedBenefits}];
+    p.fixedPayVersions=[...versions.filter(row=>row.effectiveMonth!==effectiveMonth),{effectiveMonth,salary:round(salary),benefits:round(benefits)}].sort((a,b)=>a.effectiveMonth.localeCompare(b.effectiveMonth));
+    p.fixedSalary=round(salary);p.fixedBenefits=round(benefits);return n;
+  }
   function fixedPay(state,personId,month){
-    const basis=state.closed[month]?.inputs||state,p=entity(basis,'people',personId),rows=at(basis.salaries,month,'personId',personId),configured=amountOK(p.fixedSalary)&&amountOK(p.fixedBenefits);
+    const basis=accountingState(state,month),p=entity(basis,'people',personId),rows=at(basis.salaries,month,'personId',personId),defaults=defaultFixedPay(p,month),configured=amountOK(defaults.salary)&&amountOK(defaults.benefits);
     if(rows.length){
       const split=rows.every(r=>amountOK(r.salaryAmount)&&amountOK(r.benefitsAmount)&&Math.abs(r.salaryAmount+r.benefitsAmount-r.amount)<.011);
       return {salary:split?sum(rows,'salaryAmount'):sum(rows),benefits:split?sum(rows,'benefitsAmount'):0,total:sum(rows),known:true,source:split?'override':'legacy',rows};
     }
-    return {salary:configured?p.fixedSalary:null,benefits:configured?p.fixedBenefits:null,total:configured?round(p.fixedSalary+p.fixedBenefits):null,known:configured,source:'default',rows:configured?[{id:'fixed-default-'+personId+'-'+month,personId,month,amount:round(p.fixedSalary+p.fixedBenefits),source:'档案默认：固定工资 '+p.fixedSalary+' + 社保公积金 '+p.fixedBenefits}]:[]};
+    return {salary:configured?defaults.salary:null,benefits:configured?defaults.benefits:null,total:configured?round(defaults.salary+defaults.benefits):null,known:configured,source:'default',rows:configured?[{id:'fixed-default-'+personId+'-'+month,personId,month,amount:round(defaults.salary+defaults.benefits),source:'生效配置：固定工资 '+defaults.salary+' + 社保公积金 '+defaults.benefits}]:[]};
   }
   function saveMonthlyFixedPay(state,personId,changes,expectedRevision=state.revision){
     version(state,expectedRevision);entity(state,'people',personId);const seen=new Set();
-    for(const change of changes){monthOK(state,change.month,true,true);if(seen.has(change.month))fail('月份重复');seen.add(change.month);if(!change.reset&&(!amountOK(change.salary)||!amountOK(change.benefits)))fail('固定工资和社保公积金须为非负金额');}
+    for(const change of changes){monthOK(state,change.month,true,true);if(accountingSnapshot(state,change.month))fail('该月份已固化，不能修改固定人工');if(!personInAccountingCycle(entity(state,'people',personId),change.month))fail('该月份不在人员核算周期内');if(seen.has(change.month))fail('月份重复');seen.add(change.month);if(!change.reset&&(!amountOK(change.salary)||!amountOK(change.benefits)))fail('固定工资和社保公积金须为非负金额');}
     if(!changes.length)return state;
     const n=next(state,'维护咨询师月度固定成本',{personId,changes});
     for(const change of changes){n.salaries=n.salaries.filter(r=>r.personId!==personId||r.month!==change.month);if(!change.reset)n.salaries.push({id:'fixed-pay-'+n.revision+'-'+change.month,personId,month:change.month,salaryAmount:round(change.salary),benefitsAmount:round(change.benefits),amount:round(round(change.salary)+round(change.benefits)),source:'咨询师月度固定成本'});}
@@ -454,5 +471,5 @@
     s.people.forEach(p=>Object.assign(p,{fixedSalary:{u1:15000,u2:12000,u3:9000}[p.id],fixedBenefits:{u1:3000,u2:2000,u3:2000}[p.id]}));
     return ensureAnnualPersonnelExamples(addPersonnelExamples(addScheduleExample(s)));
   }
-  return {round,projectStatus,accountingSnapshot,accountingState,ensureAccountingSnapshots,seed,ensureScheduleExample,ensurePersonnelExamples,ensureAnnualPersonnelExamples,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay};
+  return {round,projectStatus,accountingSnapshot,accountingState,ensureAccountingSnapshots,seed,ensureScheduleExample,ensurePersonnelExamples,ensureAnnualPersonnelExamples,projectResult,personResult,monthMissing,validateTimes,submitTimes,saveDrafts,saveWeekTimes,deleteTime,updateSettings,previewImport,applyImport,correctAmount,closeMonth,reopenMonth,fixedPay,saveMonthlyFixedPay,personInAccountingCycle,defaultFixedPay,saveFixedPayDefaults};
 });

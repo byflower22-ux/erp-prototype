@@ -2,16 +2,17 @@
   'use strict';
   const fiscalYear=month=>String(Number(month.slice(0,4))-(month.slice(5,7)==='01'?1:0));
   function analysisPeriod(ctx){
-    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),current=today.slice(0,7),annual=ctx.filters?.periodMode==='cumulative',year=annual?(ctx.filters?.analysisYear||fiscalYear(current)):fiscalYear(ctx.month);
-    const fiscalStart=year+'-02',fiscalEnd=String(Number(year)+1)+'-01',available=ctx.state.months.filter(month=>month>=fiscalStart&&month<=fiscalEnd&&month<=current).sort(),month=annual?(available.at(-1)||fiscalEnd):ctx.month;
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),current=today.slice(0,7),projectCumulative=ctx.page==='project-analysis'&&ctx.filters?.periodMode==='project',annual=ctx.filters?.periodMode==='cumulative',year=annual?(ctx.filters?.analysisYear||fiscalYear(current)):fiscalYear(ctx.month);
+    const fiscalStart=year+'-02',fiscalEnd=String(Number(year)+1)+'-01',available=ctx.state.months.filter(month=>month>=fiscalStart&&month<=fiscalEnd&&month<=current).sort(),month=projectCumulative?(ctx.state.months.filter(m=>m<=current).sort().at(-1)||current):annual?(available.at(-1)||fiscalEnd):ctx.month;
     const displayMonths=[];let cursor=fiscalStart;while(cursor<=month&&cursor<=fiscalEnd){displayMonths.push(cursor);const [y,m]=cursor.split('-').map(Number);cursor=(m===12?y+1:y)+'-'+String(m===12?1:m+1).padStart(2,'0');}
     const years=[...new Set([fiscalYear(current),...ctx.state.months.map(fiscalYear)])].sort().reverse();
-    const monthEnd=month+'-'+String(new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).getDate()),cutoffDate=monthEnd<today?monthEnd:today,periodStart=annual?fiscalStart:month,periodRange=periodStart+'-01 至 '+cutoffDate;
-    return {month,year,years,fiscalStart,fiscalEnd,displayMonths,periodStart,periodRange,cutoffDate,today,periodLabel:annual?year+' 年度 · '+periodRange:month+' 当月 · '+periodRange,annual};
+    const monthEnd=month+'-'+String(new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).getDate()),cutoffDate=projectCumulative?today:monthEnd<today?monthEnd:today,periodStart=projectCumulative?(ctx.state.months.slice().sort()[0]||month):annual?fiscalStart:month,periodRange=periodStart+'-01 至 '+cutoffDate;
+    const projectMonths=[];if(projectCumulative){let value=periodStart;while(value<=month){projectMonths.push(value);const [y,m]=value.split('-').map(Number);value=(m===12?y+1:y)+'-'+String(m===12?1:m+1).padStart(2,'0');}}
+    return {month,year,years,fiscalStart,fiscalEnd,displayMonths:projectCumulative?projectMonths:displayMonths,periodStart,periodRange,cutoffDate,today,periodLabel:projectCumulative?'项目累计':annual?year+' 年度 · '+periodRange:month+' 当月 · '+periodRange,annual,projectCumulative};
   }
   const scope=ctx=>{
     ctx={...ctx,...analysisPeriod(ctx)};
-    const {month,filters:f={}}=ctx,s=root.ProjectModel.accountingState(ctx.state,month),project=ctx.page==='project-analysis';
+    const {month,filters:f={}}=ctx,s=root.ProjectManagementInsights?.reportingState(ctx.state,month)||root.ProjectModel.accountingState(ctx.state,month),project=ctx.page==='project-analysis';
     const projects=s.projects.filter(x=>[x.startDate,x.createdAt].filter(Boolean).some(date=>date.slice(0,7)<=month)),members=s.members.filter(x=>projects.some(p=>p.id===x.projectId));
     const teamOf=p=>root.ProjectDelivery?.info(s,p).team||p.team||'博商管理咨询';
     const roles=[...new Set(['项目总监','项目经理','项目顾问','方案经理','业务经理','内训顾问','方案支持','实施交付','咨询师',...members.map(x=>x.role).filter(Boolean)])],teams=[...new Set(projects.map(teamOf))];
@@ -22,7 +23,8 @@
     const projectManagers=s.people.filter(person=>projects.some(p=>managersOf(p).includes(person.id)));
     const selectedManager=f.analysisProjectManager||'all',query=String(f.analysisProjectQuery||'').trim().toLocaleLowerCase();
     const searchValue=p=>{const info=root.ProjectDelivery?.info(s,p)||{};return ({'项目名称':p.name,'项目编号':info.code,'订单编号':info.order,'项目类型':p.type})[f.analysisProjectSearchBy||'项目名称']||'';};
-    const collection=project?projects.filter(x=>(selectedTeam==='all'||teamOf(x)===selectedTeam)&&(selectedManager==='all'||managersOf(x).includes(selectedManager))&&(!query||String(searchValue(x)).toLocaleLowerCase().includes(query))):s.people.filter(x=>x.joined.slice(0,7)<=month&&(selectedDepartment==='all'||departmentOf(x)===selectedDepartment||departmentOf(x).startsWith(selectedDepartment+'/')));
+    const active=person=>{const current=ctx.state.people.find(p=>p.id===person.id)||person;return ctx.annual?ctx.displayMonths.some(m=>root.ProjectModel.personInAccountingCycle(current,m)):root.ProjectModel.personInAccountingCycle(current,month);};
+    const collection=project?projects.filter(x=>(selectedTeam==='all'||teamOf(x)===selectedTeam)&&(selectedManager==='all'||managersOf(x).includes(selectedManager))&&(!query||String(searchValue(x)).toLocaleLowerCase().includes(query))):s.people.filter(x=>active(x)&&(selectedDepartment==='all'||departmentOf(x)===selectedDepartment||departmentOf(x).startsWith(selectedDepartment+'/')));
     const selection=project?'all':f.analysisPerson||'all',entities=selection==='all'?collection:collection.filter(x=>x.id===selection);
     return {project,collection,entities,selection,roles,teams,selectedRole,selectedTeam,selectedDepartment,departments,departmentOf,teamOf,members,projectManagers,selectedManager};
   };

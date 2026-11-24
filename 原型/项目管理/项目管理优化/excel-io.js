@@ -57,7 +57,7 @@
     available(state,month);if(!id)fail('缺少模板批次标识');
     const ExcelJS=await loadExcel();
     const book=new ExcelJS.Workbook();book.creator='ERP项目管理优化Demo';
-    const personnel=personnelSelection(state,scope==='person'?{departments:selection.departments}:{}).map((p,i)=>scope==='person'?{personId:p.id,cells:[i+1,p.employeeNo||p.id,p.name,p.department,month,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:7,type:'bonus'}]}:({personId:p.id,cells:[i+1,p.id,p.name,p.projectRoles.join(' / '),p.department,month,amount(state,'salary',month,{personId:p.id}),null,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:8,type:'salary'},{column:10,type:'bonus'}]}));
+    const personnel=personnelSelection(state,scope==='person'?{departments:selection.departments}:{}).filter(p=>M.personInAccountingCycle(p,month)).map((p,i)=>scope==='person'?{personId:p.id,cells:[i+1,p.employeeNo||p.id,p.name,p.department,month,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:7,type:'bonus'}]}:({personId:p.id,cells:[i+1,p.id,p.name,p.projectRoles.join(' / '),p.department,month,amount(state,'salary',month,{personId:p.id}),null,amount(state,'bonus',month,{personId:p.id}),null],inputs:[{column:8,type:'salary'},{column:10,type:'bonus'}]}));
     if(scope==='person'&&!personnel.length)fail('所选部门下没有人员，请调整筛选条件');
     const projects=[];
     for(const r of projectImportRows(state,scope==='project'?selection:{})){
@@ -159,7 +159,7 @@
       }
       sheet.getRow(1).height=40;sheet.getRow(2).height=36;sheet.getRow(3).height=36;
       const notes=[];
-      people.filter(person=>person.joined.slice(0,7)<=month).forEach((person,index)=>{
+      people.filter(person=>M.personInAccountingCycle(person,month)).forEach((person,index)=>{
         const r=M.personResult(state,person.id,month),n=index+4,row=sheet.getRow(n),api=globalThis.ProjectManagementInsights,missing=api?api.resultIssues(state,'person',person.id,r):r.missing.filter(text=>!text.includes('无法测算')),complete=!missing.length,absent=api?.inputDetails(state,'person',person.id,month).absent||{};
         const incomeKnown=!missing.some(text=>text.includes('收入比例')),salaryKnown=!missing.some(text=>/工资|固定人工/.test(text)),calendarKnown=r.standardHours>0;
         row.values=[index+1,person.name,new Date(person.joined+'T00:00:00Z'),incomeKnown?r.income:'-',r.days,calendarKnown?r.standardHours/8:'-',calendarKnown?r.saturation:'—',.033,incomeKnown?r.costs.tax:'-',salaryKnown?r.costs.salary:'待补充',absent.commission?'待补充':r.costs.commission,absent.bonus?'待补充':r.costs.bonus,incomeKnown?r.costs.management:'-',complete?r.pretax:'-',complete?r.tax:'-',complete?r.net:'-',complete&&r.margin!==null?r.margin:'-',complete&&r.breakEven!==null?r.breakEven:'-'];

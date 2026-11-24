@@ -9,7 +9,7 @@
   let host,current,pageKey='',painted=null;
   const session=()=>{if(!sessions.has(pageKey))sessions.set(pageKey,{open:false,messages:[],draft:'',spec:null,basis:'',revision:0,pending:null,busy:false,token:0});return sessions.get(pageKey);};
   function scope(ctx,d){const view=d.project?ctx.filters.projectManagerView:ctx.filters.personManagerView;return {title:d.project?'项目分析':'项目人效分析',period:d.periodLabel,range:d.project?[d.selectedTeam==='all'?'全部团队':d.selectedTeam,d.selection==='all'?'全部项目':clean(d.entities[0]?.name||'无匹配项目')].join(' · '):[d.selectedDepartment==='all'?'全部部门':d.selectedDepartment,d.selection==='all'?'全部人员':d.entities[0]?.name||'无匹配人员'].join(' · '),view:view==='accounting'?'核算明细':d.project?'项目概览':'人效分析概览'};}
-  const fingerprint=(ctx,d)=>JSON.stringify([ctx.page,d.year,d.month,ctx.state.revision,d.cumulative,d.selectedRole,d.selectedTeam,d.selection,d.entities.map(x=>x.id)]);
+  const fingerprint=(ctx,d)=>JSON.stringify([ctx.page,d.year,d.month,ctx.state.revision,d.cumulative,d.projectCumulative,d.selectedRole,d.selectedTeam,d.selection,d.entities.map(x=>x.id)]);
   function interpret(text,previous,d){
     const follow=/^(再|继续|那|这些|它们|其中|只看|只保留|改为|换成|按|把|为什么|给.*建议|与上月)/.test(text),spec=follow&&previous?{...previous,conditions:[...previous.conditions]}:{topic:'overview',metric:d.project?'income':'incomeHour',asc:false,limit:5,conditions:[],ids:null};
     const metricFor=label=>/净利率|利润率/.test(label)?'margin':/净利润|税后利润|利润/.test(label)?'net':/回款缺口|资金缺口/.test(label)?'cashGap':/覆盖率/.test(label)?'cashRate':/利用率|饱和度/.test(label)?'util':/小时.*产出|小时.*交付/.test(label)?'incomeHour':/投入产出/.test(label)?'roi':/集中度/.test(label)?'concentration':/成本|费用/.test(label)?'cost':'income';
@@ -43,7 +43,7 @@
       const costs=Object.entries(rows.reduce((sum,r)=>{Object.entries(r.costs).forEach(([k,v])=>sum[k]=(sum[k]||0)+v);return sum;},{})).sort((a,b)=>b[1]-a[1]),total=costs.reduce((n,[,v])=>n+v,0);
       html+=`<h4>成本构成</h4><p>已知成本合计 <b>${m(total)}</b> 元，不含所得税。</p>`+table(['成本项目','金额（元）','占比'],costs.map(([k,v])=>[costNames[k]||k,m(v),total?p(v/total):'—']));
     }else if(spec.topic==='compare'){
-      html+='<h4>截止月份 '+e(d.month)+' 与上月对照</h4>'+table([d.project?'项目':'人员','本月交付','上月交付','交付差额','净利差额'],rows.slice(0,spec.limit).map(r=>[clean(r.entity.name),m(r.now.income),r.previous?m(r.previous.income):'无上月数据',r.previous?m(r.now.income-r.previous.income):'—',r.previous&&r.complete&&!root.ProjectManagementInsights.resultIssues(d.s,d.kind,r.id,r.previous).length?m(r.now.net-r.previous.net):'待补齐']));
+      html+='<h4>截止月份 '+e(d.month)+' 与上月对照</h4>'+table([d.project?'项目':'人员','本月交付','上月交付','交付差额','净利差额'],rows.slice(0,spec.limit).map(r=>[clean(r.entity.name),m(r.now.income),r.previous?m(r.previous.income):'无上月数据',r.previous?m(r.now.income-r.previous.income):'—',r.previous&&r.complete&&(d.availableOnly||!root.ProjectManagementInsights.resultIssues(d.s,d.kind,r.id,r.previous).length)?m(r.now.net-r.previous.net):d.availableOnly?'-':'待补齐']));
       if(d.cumulative)html+='<p class="aa-caveat">此处单独比较截止月份与上月，年度合计见当前范围概览。</p>';if(d.cal.partial)html+='<p class="aa-caveat">本月尚未结束，以上仅解释与上月整月的差值，不据此判断增长或下降。</p>';
     }else if(spec.topic==='ranking'){
       const unavailable=d.project&&['util','roi','concentration'].includes(spec.metric);if(unavailable)html+='<p>该指标属于人员分析口径，请到“项目人效分析”中查看。当前可比较项目交付、利润、成本和回款。</p>';

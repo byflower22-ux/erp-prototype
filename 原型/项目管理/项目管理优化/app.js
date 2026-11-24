@@ -70,6 +70,7 @@
   const values=()=>Object.fromEntries(new FormData(body.querySelector('form')));
   const todayInMonth=()=>filters.date?.startsWith(month)?filters.date:(state.calendar[month]?.days[0]||month+'-01');
   function navigate(page){
+    if(page==='person-analysis'&&filters.periodMode==='project')filters.periodMode='cumulative';
     if(page!=='schedule'&&!prepareScheduleLeave(()=>navigate(page)))return;
     if(!labels[page])page='schedule';
     if(employee()&&page!=='schedule'){toast('咨询师本人仅可使用自己的项目日程',true);return;}
@@ -211,16 +212,35 @@
     requireFinance();const person=id?state.people.find(x=>x.id===id):null;if(id&&!person)throw Error('咨询师不存在');
     const C=ProjectConsultants,revision=state.revision,current=person?C.accountFor(person):null,linked=!!person&&(state.members.some(x=>x.personId===id)||state.salaries.some(x=>x.personId===id)||state.times.some(x=>x.personId===id)),fixed=!!current&&linked;
     const usedBy=account=>state.people.find(x=>x.id!==id&&C.accountFor(x)?.id===account.id);
-    const accountChoices=`<option value="">请选择 ERP 已有账号</option>`+C.accounts.map(account=>`<option value="${esc(account.id)}" ${current?.id===account.id?'selected':''} ${usedBy(account)?'disabled':''}>${esc(account.name+' / '+account.employeeNo+' / '+account.username)}${usedBy(account)?'（已关联咨询师）':''}</option>`).join('');
+    const accountLabel=account=>account?account.name+' / '+account.employeeNo+' / '+account.username:'请选择 ERP 已有账号';
     const autoField=(label,name)=>inputField(label,name,current?.[name]||'','text','readonly data-account-field="'+name+'"');
-    openDialog(person?'编辑咨询师':'新增咨询师',`<form id="consultant-account-form"><div class="form-grid"><label class="field wide">关联 ERP 账号 <span class="required-mark">*</span><select id="consultant-account" name="accountId" required ${fixed?'disabled':''}>${accountChoices}</select>${fixed?`<input type="hidden" name="accountId" value="${esc(current.id)}">`:''}<small>预设 ERP 账号 · Demo。一个账号仅能关联一位咨询师。${fixed?'已有项目或核算记录，保留现有账号关联。':''}</small></label></div><section class="consultant-account-info"><div class="consultant-account-caption">ERP 账号信息 <span>选择账号后自动带出，不可手工修改</span></div><div class="form-grid">${autoField('姓名','name')}${autoField('工号','employeeNo')}${autoField('状态','status')}${autoField('所属部门','department')}${autoField('入职日期','joined')}${autoField('手机号','phone')}${autoField('邮箱','email')}${autoField('ERP登录账号','username')}</div></section><section class="consultant-pay-config"><h3>固定成本默认配置</h3><div class="form-grid"><label class="field">月固定工资（元） <span class="required-mark">*</span><input name="fixedSalary" type="number" min="0" step="0.01" required value="${esc(person?.fixedSalary??'')}" placeholder="必填，可填 0"></label><label class="field">月固定社保公积金（元） <span class="required-mark">*</span><input name="fixedBenefits" type="number" min="0" step="0.01" required value="${esc(person?.fixedBenefits??'')}" placeholder="必填，可填 0"></label></div><p class="rule-text">每月默认取此配置，单月调整在“月度固定成本”中维护。</p></section><div class="form-grid"><label class="field wide">专业方向<input name="expertise" value="${esc(person?.expertise||'')}" placeholder="例如：战略咨询、组织管理、数字化转型" maxlength="150"></label><label class="field wide">备注<textarea name="note" maxlength="500">${esc(person?.note||'')}</textarea></label></div><p class="rule-text">基础信息以 ERP 账号为准。</p>${formActions('保存档案')}</form>`,()=>{
+    openDialog(person?'编辑咨询师':'新增咨询师',`<form id="consultant-account-form"><div class="form-grid"><label class="field wide">关联 ERP 账号 <span class="required-mark">*</span><input type="hidden" id="consultant-account" name="accountId" value="${esc(current?.id||'')}"><button type="button" id="consultant-account-trigger" class="analysis-team-trigger analysis-person-trigger consultant-account-trigger" aria-label="选择ERP账号" aria-haspopup="dialog" ${fixed?'disabled':''}><span>${esc(accountLabel(current))}</span><span aria-hidden="true">⌄</span></button><small>预设 ERP 账号 · Demo。一个账号仅能关联一位咨询师。${fixed?'已有项目或核算记录，保留现有账号关联。':''}</small></label></div><section class="consultant-account-info"><div class="consultant-account-caption">ERP 账号信息 <span>选择账号后自动带出，不可手工修改</span></div><div class="form-grid">${autoField('姓名','name')}${autoField('工号','employeeNo')}${autoField('状态','status')}${autoField('所属部门','department')}${autoField('入职日期','joined')}${autoField('手机号','phone')}${autoField('邮箱','email')}${autoField('ERP登录账号','username')}</div></section><section class="consultant-pay-config"><h3>核算周期</h3><div class="form-grid"><label class="field">开始月份 <span class="required-mark">*</span><input name="accountingStart" type="month" required value="${esc(person?.accountingStart||person?.joined?.slice(0,7)||month)}"></label><label class="field">结束月份<input name="accountingEnd" type="month" value="${esc(person?.accountingEnd||'')}" aria-label="核算结束月份，留空为长期"></label></div></section><section class="consultant-pay-config"><h3>固定成本默认配置</h3><div class="form-grid"><label class="field">月固定工资（元） <span class="required-mark">*</span><input name="fixedSalary" type="number" min="0" step="0.01" required value="${esc(person?.fixedSalary??'')}" placeholder="必填，可填 0"></label><label class="field">月固定社保公积金（元） <span class="required-mark">*</span><input name="fixedBenefits" type="number" min="0" step="0.01" required value="${esc(person?.fixedBenefits??'')}" placeholder="必填，可填 0"></label></div><div class="form-grid"><label class="field">生效月份 <span class="required-mark">*</span><input name="fixedPayEffective" type="month" required value="${esc(month)}"></label></div><p class="rule-text">仅影响生效月及以后；已单独维护及已固化月份保持原值。</p></section><div class="form-grid"><label class="field wide">专业方向<input name="expertise" value="${esc(person?.expertise||'')}" placeholder="例如：战略咨询、组织管理、数字化转型" maxlength="150"></label><label class="field wide">备注<textarea name="note" maxlength="500">${esc(person?.note||'')}</textarea></label></div><p class="rule-text">基础信息以 ERP 账号为准。</p>${formActions('保存档案')}</form>`,()=>{
       requireFinance();if(state.revision!==revision)throw Error('数据版本已变化，请重新打开档案');const v=values(),account=C.accounts.find(x=>x.id===v.accountId);if(!account)throw Error('请先关联 ERP 已有账号');if(usedBy(account))throw Error('该 ERP 账号已关联其他咨询师，不能重复新增');if(fixed&&account.id!==current.id)throw Error('已有业务记录，请保持原 ERP 账号关联');
       if([v.fixedSalary,v.fixedBenefits].some(value=>value===''||!Number.isFinite(Number(value))||Number(value)<0))throw Error('固定工资和社保公积金须为非负金额');
-      const next=structuredClone(state),personIdToSave=id||'person-'+crypto.randomUUID(),profile={...person,...C.accountFields(account),id:personIdToSave,role:person?.role||'咨询师',fixedSalary:M.round(v.fixedSalary),fixedBenefits:M.round(v.fixedBenefits),expertise:v.expertise.trim(),note:v.note.trim()};delete profile.code;
+      let next=structuredClone(state);const personIdToSave=id||'person-'+crypto.randomUUID(),profile={...person,...C.accountFields(account),id:personIdToSave,role:person?.role||'咨询师',accountingStart:v.accountingStart,accountingEnd:v.accountingEnd,fixedSalary:person?person.fixedSalary:M.round(v.fixedSalary),fixedBenefits:person?person.fixedBenefits:M.round(v.fixedBenefits),expertise:v.expertise.trim(),note:v.note.trim()};delete profile.code;
+      if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v.accountingStart||'')||v.accountingStart<account.joined.slice(0,7))throw Error('核算开始月份须不早于入职月份');
+      if(v.accountingEnd&&(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v.accountingEnd)||v.accountingEnd<v.accountingStart))throw Error('核算结束月份不能早于开始月份');
+      if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v.fixedPayEffective||''))throw Error('请选择固定人工生效月份');
+      if(!person&&v.fixedPayEffective<v.accountingStart)throw Error('固定人工生效月份不能早于核算开始月份');
       if(person)next.people[next.people.findIndex(x=>x.id===id)]=profile;else next.people.push(profile);
+      const salary=M.round(v.fixedSalary),benefits=M.round(v.fixedBenefits);
+      if(person&&(salary!==person.fixedSalary||benefits!==person.fixedBenefits))next=M.saveFixedPayDefaults(next,id,{salary,benefits,effectiveMonth:v.fixedPayEffective});
+      if(!person){const saved=next.people.find(p=>p.id===personIdToSave);saved.fixedPayVersions=[{effectiveMonth:v.fixedPayEffective,salary,benefits}];}
       next.revision++;next.audit.push({id:'audit-'+next.revision,action:person?'编辑咨询师档案':'关联ERP账号新增咨询师',detail:{personId:personIdToSave,accountId:account.id},revision:next.revision,at:new Date().toISOString()});persist(next);closeDialog(true);render();toast(person?'咨询师档案已按 ERP 账号资料更新':'已关联 ERP 账号并新增咨询师');
     },true,'师资与教练管理 · 关联 ERP 账号');
-    const select=body.querySelector('#consultant-account');if(select)select.addEventListener('change',()=>{const account=C.accounts.find(x=>x.id===select.value);body.querySelectorAll('[data-account-field]').forEach(input=>{input.value=account?.[input.dataset.accountField]||'';});});
+    const accountInput=body.querySelector('#consultant-account'),trigger=body.querySelector('#consultant-account-trigger');
+    trigger?.addEventListener('click',()=>{
+      requireFinance();if(fixed)return;
+      const chooser=document.createElement('dialog');chooser.className='analysis-person-dialog';chooser.setAttribute('aria-labelledby','consultant-account-picker-title');
+      chooser.innerHTML=`<div class="dialog-heading"><h2 id="consultant-account-picker-title">选择 ERP 账号</h2><button type="button" class="icon-btn" aria-label="关闭账号选择">×</button></div><div class="person-picker-body">${personPickerHTML()}</div>`;
+      document.body.appendChild(chooser);chooser.addEventListener('close',()=>{chooser.remove();trigger.focus({preventScroll:true});},{once:true});chooser.addEventListener('cancel',event=>{event.preventDefault();chooser.close();});chooser.querySelector('.icon-btn').onclick=()=>chooser.close();
+      chooser.showModal();mountPersonPicker(chooser.querySelector('#analysis-person-picker'),{people:C.accounts.map(account=>({...account,erpUsername:account.username})),selected:accountInput.value,includeAll:false,disabled:usedBy,onSelect:account=>{
+        requireFinance();if(!account||usedBy(account))return;
+        accountInput.value=account.id;trigger.querySelector('span').textContent=accountLabel(account);
+        body.querySelectorAll('[data-account-field]').forEach(input=>{input.value=account[input.dataset.accountField]||'';});
+        accountInput.dispatchEvent(new Event('change',{bubbles:true}));chooser.close();
+      }});
+    });
   }
   function editConsultantMonthlyPay(id){
     if(employee())throw Error('当前身份没有固定成本查看权限');
@@ -276,7 +296,7 @@
     draw();
   }
   function switchSchedulePerson(value){
-    if(value!==personId&&!prepareScheduleLeave(()=>switchSchedulePerson(value))){const select=content.querySelector('#schedule-access-person');if(select)select.value=personId;return;}
+    if(value!==personId&&!prepareScheduleLeave(()=>switchSchedulePerson(value)))return;
     if(!scheduleAdmin())throw Error('项目成员只能查看自己的日程');
     if(dialog.open&&!closeDialog())return;
     if(!state.people.some(p=>p.id===value))throw Error('人员不存在');
@@ -383,10 +403,10 @@
     if(employee())throw Error('当前身份不能查看核算明细');
     const analysisPage=['person-analysis','project-analysis'].includes(currentTab()?.nav),analysis=analysisPage?ProjectManagementInsights.data(ctx()):null,cumulative=!sourceMonth&&analysis?.cumulative;
     const selected=analysis?.rows.find(row=>row.id===id),periods=sourceMonth?[sourceMonth]:analysis?(selected?.selected.map(result=>result.month)||[analysis.month]):[month];
-    const results=periods.map(period=>kind==='person'?M.personResult(state,id,period):M.projectResult(state,id,period));
+    const results=periods.map(period=>analysis?ProjectManagementInsights.reportResult(state,kind,id,period):kind==='person'?M.personResult(state,id,period):M.projectResult(state,id,period)).filter(Boolean);
     const result=results.reduce((a,r)=>{for(const k of ['income','totalCost','tax','net'])a[k]+=r[k];return a;},{income:0,totalCost:0,tax:0,net:0});
-    const missing=analysis&&!sourceMonth&&selected?selected.missing:[...new Set(results.flatMap(r=>analysis?ProjectManagementInsights.resultIssues(state,kind,id,r):(r.missing||[]).filter(v=>!v.includes('无法测算'))))];
-    openDialog((kind==='person'?uName(id):pName(id))+' · 核算来源',`<div class="notice info">${esc(analysis&&!sourceMonth?analysis.periodLabel:periods.join('、'))} · ${cumulative?'年度来源':'当月来源'} · 金额来自同一份底账，已结月份按快照展示。</div><div class="metrics">${card('交付收入',money(result.income),'元')}${card(missing.length?'已知成本合计':'总成本',money(result.totalCost),'元')}${card('所得税',missing.length?'-':money(result.tax),'元')}${card('净利润',missing.length?'-':money(result.net),'元',missing.length?'':result.net<0?'negative':'positive')}</div>${missing.length?'<div class="notice">数据不完整：'+missing.map(esc).join('；')+'</div>':''}<div>${results.flatMap(r=>[...(r.sources||[]),...(kind==='person'?[{id:'derived-business-tax-'+r.month,month:r.month,label:'税费＝个人交付金额 × 3.3%',amount:r.costs.tax},{id:'derived-management-'+r.month,month:r.month,label:'管理费＝个人交付金额 × 20%',amount:r.costs.management}]:[]),{id:'derived-income-tax-'+r.month,month:r.month,label:kind==='person'?'个人所得税：当月税前利润 × 15%（亏损为0）':'项目所得税：累计税额减前月累计税额',amount:r.tax}]).map(s=>`<div class="source-line"><div><b>${esc(s.label||s.kind)}</b><small>${esc(s.month)} · ${esc(s.id)}${s.personId?' · '+esc(uName(s.personId)):''}${s.projectId?' · '+esc(pName(s.projectId)):''}</small><small>${esc(s.detail||'')}</small></div><strong>${['times','historicalTimes'].includes(s.kind)?'—':money(s.amount)}</strong></div>`).join('')||U.empty('暂无来源明细')}</div><p class="rule-text">个人盈亏平衡点＝（固定人工＋提成＋奖金）÷［1－（税费＋管理费）÷当月交付金额］。项目工资分摊为派生结果，不再次新增原始成本。</p>`,null,true,'核算分析 · 来源追溯');
+    const missing=analysis?.availableOnly?[]:analysis&&!sourceMonth&&selected?selected.missing:[...new Set(results.flatMap(r=>analysis?ProjectManagementInsights.resultIssues(state,kind,id,r):(r.missing||[]).filter(v=>!v.includes('无法测算'))))];
+    openDialog((kind==='person'?uName(id):pName(id))+' · 核算来源',`<div class="notice info">${esc(analysis&&!sourceMonth?analysis.periodLabel:periods.join('、'))} · ${analysis?.projectCumulative?'项目累计来源':cumulative?'年度来源':'当月来源'} · 金额来自同一份底账，已结月份按快照展示。</div><div class="metrics">${card('交付收入',money(result.income),'元')}${card(missing.length?'已知成本合计':'总成本',money(result.totalCost),'元')}${card('所得税',missing.length?'-':money(result.tax),'元')}${card('净利润',missing.length?'-':money(result.net),'元',missing.length?'':result.net<0?'negative':'positive')}</div>${missing.length?'<div class="notice">数据不完整：'+missing.map(esc).join('；')+'</div>':''}<div>${results.flatMap(r=>[...(r.sources||[]),...(kind==='person'?[{id:'derived-business-tax-'+r.month,month:r.month,label:'税费＝个人交付金额 × 3.3%',amount:r.costs.tax},{id:'derived-management-'+r.month,month:r.month,label:'管理费＝个人交付金额 × 20%',amount:r.costs.management}]:[]),{id:'derived-income-tax-'+r.month,month:r.month,label:kind==='person'?'个人所得税：当月税前利润 × 15%（亏损为0）':'项目所得税：累计税额减前月累计税额',amount:r.tax}]).map(s=>`<div class="source-line"><div><b>${esc(s.label||s.kind)}</b><small>${esc(s.month)} · ${esc(s.id)}${s.personId?' · '+esc(uName(s.personId)):''}${s.projectId?' · '+esc(pName(s.projectId)):''}</small><small>${esc(s.detail||'')}</small></div><strong>${['times','historicalTimes'].includes(s.kind)?'—':money(s.amount)}</strong></div>`).join('')||U.empty('暂无来源明细')}</div><p class="rule-text">个人盈亏平衡点＝（固定人工＋提成＋奖金）÷［1－（税费＋管理费）÷当月交付金额］。项目工资分摊为派生结果，不再次新增原始成本。</p>`,null,true,'核算分析 · 来源追溯');
   }
   function correctAmount(collection,id){
     requireFinance();const row=state[collection]?.find(r=>r.id===id);if(!row)throw Error('记录不存在');const revision=state.revision;
@@ -528,7 +548,7 @@
     // Render the same ledger so columns, filters, ordering and missing values stay in sync.
     snapshot.innerHTML=ProjectManagementInsights.render({...context,filters:{...context.filters,projectManagerView:'accounting',personManagerView:'accounting'}});
     const table=snapshot.querySelector('.project-ledger');if(!table)throw Error('核算明细尚未加载，请刷新后重试');
-    const file=await ProjectExcel.createAccountingReport({...LedgerSort.exportTable(table),title:d.project?'项目核算明细':'项目人效核算明细',period:d.cumulative?d.year+'年累计':d.month,periodLabel:d.periodLabel});
+    const file=await ProjectExcel.createAccountingReport({...LedgerSort.exportTable(table),title:d.project?'项目核算明细':'项目人效核算明细',period:d.projectCumulative?'项目累计':d.cumulative?d.year+'年累计':d.month,periodLabel:d.periodLabel});
     if(employee())throw Error('当前身份不能导出核算数据');
     downloadExcel(file);toast('已按核算明细列表导出Excel');
   }
@@ -546,26 +566,34 @@
     }
     search.addEventListener('input',draw);tree.addEventListener('click',event=>{const button=event.target.closest('[data-department]');if(!button)return;event.preventDefault();const department=button.dataset.department;closeDialog(true);applyFilter('analysisDepartment',department);});draw();search.focus();
   }
-  function openAnalysisPersonPicker(target){
-    const field=target.dataset.field,direct=['analysisPerson','analysisProjectManager'].includes(field),form=target.closest('form'),input=target.closest('.analysis-person-form-field')?.querySelector('input');
-    const scope=ProjectAnalysisScope.select(ctx()),candidates=direct?(field==='analysisProjectManager'?scope.projectManagers:scope.collection):state.people.filter(person=>JSON.parse(target.dataset.candidates||'[]').includes(person.name));
-    const people=candidates.map(ProjectConsultants.profile),selected=direct?filters[field]:input.value,title=direct?(field==='analysisProjectManager'?'选择项目经理':'选择人员'):'选择'+field;
-    openDialog(title,`<div id="analysis-person-picker"><input type="search" class="analysis-person-search" aria-label="搜索人员" placeholder="输入姓名、工号或部门进行过滤"><div class="analysis-person-tree" role="tree" aria-label="部门人员"></div></div>`,null,false,'');
-    dialog.classList.add('analysis-person-dialog');
-    const picker=body.querySelector('#analysis-person-picker'),tree=picker.querySelector('.analysis-person-tree'),search=picker.querySelector('input');
+  function personPickerHTML(){
+    return `<div id="analysis-person-picker"><input type="search" class="analysis-person-search" aria-label="搜索人员" placeholder="输入姓名、工号或部门进行过滤"><div class="analysis-person-tree" role="tree" aria-label="部门人员"></div></div>`;
+  }
+  function mountPersonPicker(picker,{people,selected,includeAll=true,disabled=()=>false,onSelect}){
+    const tree=picker.querySelector('.analysis-person-tree'),search=picker.querySelector('input');
     function draw(){
       const query=search.value.trim().toLocaleLowerCase(),visible=people.filter(person=>[person.name,person.employeeNo,person.department,person.erpUsername].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
       const root={children:new Map(),people:[]};
       visible.forEach(person=>{let node=root;String(person.department||'未分配部门').split(/\s*[/／]\s*/).filter(Boolean).forEach(name=>{if(!node.children.has(name))node.children.set(name,{children:new Map(),people:[]});node=node.children.get(name);});node.people.push(person);});
-      const renderNode=node=>[...node.children.entries()].map(([name,child])=>`<details open class="analysis-person-department"><summary>${esc(name)}</summary><div role="group">${renderNode(child)}</div></details>`).join('')+node.people.map(person=>`<button type="button" role="treeitem" aria-selected="${selected===(direct?person.id:person.name)}" class="analysis-person-node ${selected===(direct?person.id:person.name)?'selected':''}" data-person-id="${esc(person.id)}">${esc(person.name)}${person.employeeNo?'（'+esc(person.employeeNo)+'）':''}</button>`).join('');
-      tree.innerHTML=`<button type="button" class="analysis-person-node analysis-person-all ${!selected||selected==='all'?'selected':''}" data-person-id="all">全部人员</button>`+(visible.length?renderNode(root):'<div class="analysis-person-empty">暂无匹配人员</div>');
+      const renderNode=node=>[...node.children.entries()].map(([name,child])=>`<details open class="analysis-person-department"><summary>${esc(name)}</summary><div role="group">${renderNode(child)}</div></details>`).join('')+node.people.map(person=>`<button type="button" role="treeitem" aria-selected="${selected===person.id}" class="analysis-person-node ${selected===person.id?'selected':''}" data-person-id="${esc(person.id)}" ${disabled(person)?'disabled aria-disabled="true" title="已关联其他咨询师"':''}>${esc(person.name)}${person.employeeNo?'（'+esc(person.employeeNo)+'）':''}${disabled(person)?'（已关联咨询师）':''}</button>`).join('');
+      tree.innerHTML=(includeAll?`<button type="button" class="analysis-person-node analysis-person-all ${!selected||selected==='all'?'selected':''}" data-person-id="all">全部人员</button>`:'')+(visible.length?renderNode(root):'<div class="analysis-person-empty">暂无匹配人员</div>');
     }
     search.addEventListener('input',draw);
-    tree.addEventListener('click',event=>{const choice=event.target.closest('[data-person-id]');if(!choice)return;
-      const person=people.find(person=>person.id===choice.dataset.personId);closeDialog(true);
-      if(direct)applyFilter(field,person?.id||'all');
+    tree.addEventListener('click',event=>{const choice=event.target.closest('[data-person-id]');if(!choice||choice.disabled)return;onSelect(people.find(person=>person.id===choice.dataset.personId)||null);});
+    draw();search.focus();
+  }
+  function openAnalysisPersonPicker(target){
+    const field=target.dataset.field,schedule=field==='schedulePerson',direct=schedule||['analysisPerson','analysisProjectManager'].includes(field),form=target.closest('form'),input=target.closest('.analysis-person-form-field')?.querySelector('input');
+    if(schedule&&(!scheduleAdmin()||ctx().mobile))throw Error('只有Web端管理员可切换日程人员');
+    const scope=schedule?null:ProjectAnalysisScope.select(ctx()),candidates=schedule?state.people:direct?(field==='analysisProjectManager'?scope.projectManagers:scope.collection):state.people.filter(person=>JSON.parse(target.dataset.candidates||'[]').includes(person.name));
+    const people=candidates.map(ProjectConsultants.profile),selected=schedule?personId:direct?filters[field]:people.find(person=>person.name===input.value)?.id,title=direct?(field==='analysisProjectManager'?'选择项目经理':'选择人员'):'选择'+field;
+    openDialog(title,personPickerHTML(),null,false,'');dialog.classList.add('analysis-person-dialog');
+    mountPersonPicker(body.querySelector('#analysis-person-picker'),{people,selected,includeAll:!schedule,onSelect:person=>{
+      closeDialog(true);
+      if(schedule){if(person)switchSchedulePerson(person.id);}
+      else if(direct)applyFilter(field,person?.id||'all');
       else{input.value=person?.name||'';target.querySelector('span').textContent=person?.name||'全部';filters.projectLedgerSearchDraft=Object.fromEntries(new FormData(form));target.focus({preventScroll:true});}
-    });draw();search.focus();
+    }});
   }
   function openAnalysisTeamPicker(){
     const scope=ProjectAnalysisScope.select(ctx()),teams=scope.teams.map(name=>({name,code:'-',region:'-'}));
@@ -769,7 +797,6 @@
     });
     if(el.dataset.projectMeta)guard(()=>{requireFinance();const next=structuredClone(state),p=next.projects.find(p=>p.id===el.dataset.id);p[el.dataset.projectMeta]=el.value;next.revision++;persist(next);toast('项目标记已保存');});
     if(el.id==='delivery-confirmation-size'){currentTab().deliveryPageSize=Number(el.value);currentTab().deliveryPage=1;render();}
-    if(el.id==='schedule-access-person')guard(()=>switchSchedulePerson(el.value));
     if(el.id==='demo-role')switchDemoRole(el.value);
     if(el.id==='demo-person'){if(!scheduleAdmin()&&currentTab()?.nav==='schedule'){el.value=personId;toast('项目成员只能查看自己的日程',true);return;}if(dialog.open&&!closeDialog()){el.value=personId;return;}personId=el.value;render();}
   });
