@@ -8,7 +8,7 @@
   const sources = {
     budget:'原型/预算管理/预算优化/prototype/index.html?erp=1#overview',
     receipt:'原型/付款报销/回单对接/index.html?erp=1',
-    project:'原型/项目管理/项目管理优化/index.html?erp=1&v=20261124-release2'+(performance.getEntriesByType('navigation')[0]?.type==='reload'?'&reload=1':'')
+    project:'原型/项目管理/项目管理优化/index.html?erp=1&v=20261125-release1'+(performance.getEntriesByType('navigation')[0]?.type==='reload'?'&reload=1':'')
   };
   let requestedModule = null, previousNav = null;
   let leaveRequest=null,leaveSequence=0;

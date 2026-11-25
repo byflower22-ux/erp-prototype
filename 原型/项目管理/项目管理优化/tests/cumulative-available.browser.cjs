@@ -23,7 +23,7 @@ const ExcelJS=require('../vendor/exceljs-4.4.0.min.js');
     const download=await pending;assert.match(download.suggestedFilename(),/\.xlsx$/);
     const chunks=[];for await(const chunk of await download.createReadStream())chunks.push(chunk);
     const book=new ExcelJS.Workbook();await book.xlsx.load(Buffer.concat(chunks));
-    const sheet=book.worksheets[0],expected=key==='person-analysis'?29:mode==='project'?34:37;
+    const sheet=book.worksheets[0],expected=key==='person-analysis'?28:mode==='project'?35:38;
     assert.equal(sheet.getRow(4).cellCount,expected);
     assert.equal(await f.locator(ledger+' thead tr').last().locator('th').count(),expected);
     const exported=[];sheet.eachRow(row=>row.eachCell(cell=>exported.push(String(cell.value??''))));

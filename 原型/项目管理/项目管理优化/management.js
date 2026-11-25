@@ -27,13 +27,15 @@
   function calendar(s,month){s=reportingState(s,month);const all=s.calendar[month]?.days||[],partial=month===AS_OF.slice(0,7),days=all.filter(d=>d<=AS_OF);return {partial,days,elapsed:days.length*8,full:s.calendar[month]?.standardHours||0};}
   function businessHours(s,personId,projectId,month){s=reportingState(s,month);return s.times.filter(t=>t.status==='submitted'&&t.date.startsWith(month)&&t.date<=AS_OF&&(!personId||t.personId===personId)&&(!projectId||t.projectId===projectId)).reduce((n,t)=>n+t.hours,0)+s.historicalTimes.filter(t=>t.month===month&&month<AS_OF.slice(0,7)&&(!personId||t.personId===personId)&&(!projectId||t.projectId===projectId)).reduce((n,t)=>n+t.hours,0);}
   const periods=(s,entity,kind,month)=>s.months.filter(v=>v<=month&&(kind==='project'?v>=entity.startDate.slice(0,7):v>=entity.joined.slice(0,7))).sort();
-  const importLabels={commission:'项目交付提成',exception:'项目异常费用',fixed:'固定成本分摊',travel:'交通差旅',accountManager:'大客户经理提成'};
+  const importLabels={commission:'项目交付提成',exception:'项目异常费用',fixed:'固定成本分摊',travel:'交通差旅',accountManager:'大客户经理提成',other:'其他成本'};
   function projectInputRows(s,id,month,key){const basis=reportingState(s,month);return (basis[key==='commission'?'commissions':['business','management','travel'].includes(key)?'actualCosts':'expenses']||[]).filter(x=>x.projectId===id&&x.month===month&&(key==='commission'||x.category===key));}
   function inputDetails(s,kind,id,month){
     const basis=reportingState(s,month),valid=row=>Number.isFinite(row.amount)&&row.amount>=0;let absent;
     if(kind==='project')absent=Object.fromEntries(Object.keys(importLabels).map(key=>{const inputs=projectInputRows(s,id,month,key);const ids=[...new Set(basis.members.filter(x=>x.projectId===id).map(x=>x.personId))];return [key,key==='commission'?ids.some(personId=>!inputs.some(row=>row.personId===personId&&valid(row))):!inputs.some(valid)];}));
     else{const projects=[...new Set(basis.members.filter(x=>x.personId===id&&basis.projects.some(p=>p.id===x.projectId&&p.startDate.slice(0,7)<=month)).map(x=>x.projectId))];absent={salary:!M.fixedPay(basis,id,month).known,commission:projects.some(projectId=>!basis.commissions.some(row=>row.personId===id&&row.projectId===projectId&&row.month===month&&valid(row))),bonus:!basis.bonuses.some(row=>row.personId===id&&row.month===month&&valid(row))};}
-    const labels=kind==='project'?importLabels:{salary:'固定人工',commission:'提成',bonus:'奖金'};
+    if(kind==='person')absent.other=(month===AS_OF.slice(0,7)||Object.hasOwn(M.accountingSnapshot(s,month)?.people?.[id]?.costs||{},'other'))&&!basis.expenses.some(row=>row.personId===id&&!row.projectId&&row.month===month&&row.category==='personOther'&&valid(row));
+    else if(month!==AS_OF.slice(0,7)&&!Object.hasOwn(M.accountingSnapshot(s,month)?.projects?.[id]?.costs||{},'other'))absent.other=false;
+    const labels=kind==='project'?importLabels:{salary:'固定人工',commission:'提成',bonus:'奖金',other:'其他成本'};
     return {absent,missing:Object.entries(absent).filter(([,value])=>value).map(([key])=>month+'：'+labels[key]+'待补充')};
   }
   function resultIssues(s,kind,id,result){return [...new Set([...reasons(result).map(reason=>result.month+'：'+reason),...inputDetails(s,kind,id,result.month).missing])];}
@@ -52,7 +54,7 @@
       const previous=history.filter(value=>value.month<month).at(-1)||null,selected=cumulative?history:now.reportSource?[now]:[];
       const coverageMissing=availableOnly?[]:cumulative?period.displayMonths.filter(value=>value>=(project?entity.startDate:entity.joined).slice(0,7)&&inCycle(value)&&!s.months.includes(value)):[];
       const missing=availableOnly?[]:[...new Set([...selected.flatMap(result=>resultIssues(s,kind,entity.id,result)),...(!selected.length?['无核算快照']:[]),...coverageMissing.map(value=>value+'：无核算数据')])];
-      const missingInputs=Object.fromEntries(Object.keys(project?importLabels:{salary:1,commission:1,bonus:1}).map(key=>[key,!availableOnly&&selected.some(result=>inputDetails(s,kind,entity.id,result.month).absent[key])]));
+      const missingInputs=Object.fromEntries(Object.keys(project?importLabels:{salary:1,commission:1,bonus:1,other:1}).map(key=>[key,!availableOnly&&selected.some(result=>inputDetails(s,kind,entity.id,result.month).absent[key])]));
       const income=add(selected,'income'),net=add(selected,'net'),cost=add(selected,'totalCost'),tax=add(selected,'tax'),hours=selected.reduce((n,r)=>n+(r.hours||0),0),standard=selected.reduce((n,r)=>n+calendar(s,r.month).elapsed,0),fullStandard=project?0:add(selected,'standardHours');
       const costs=selected.reduce((a,r)=>{Object.keys(r.costs).forEach(k=>a[k]=(a[k]||0)+(r.costs[k]||0));return a;},{}),salaryMissing=missing.some(x=>/工资|固定人工/.test(x))||coverageMissing.length>0,revenueMissing=missing.some(x=>x.includes('收入比例'))||coverageMissing.length>0,labor=project?costs.salary:(costs.salary||0)+(costs.commission||0)+(costs.bonus||0),complete=availableOnly||missing.length===0;
       const received=project?add(selected,'received'):null,delivered=project?income:null,cashGap=project?Math.max(delivered-received,0):0,cashRate=project&&delivered>0?received/delivered:null;
@@ -203,7 +205,7 @@
         [d.projectCumulative?'累计确认交付金额':d.cumulative?'本年度确认交付金额':'当月确认交付金额',r=>r.revenueMissing?'-':money(r.income),true]
       ]}]:[]),
       {label:(d.projectCumulative?'项目累计':d.cumulative?'本年度':'当月')+'核算 · 元 / %',columns:[
-        ...Object.entries({business:'业务成本',management:'管理费',travel:'交通差旅',tax:'税金（3.3%）',accountManager:'大客户经理提成',commission:'项目交付提成',salary:'咨询师工资成本',exception:'项目异常费用',yearBonus:'年终奖分摊',fixed:'固定成本分摊'}).map(([key,label])=>[label,r=>costValue(r,key),true]),
+        ...Object.entries({business:'业务成本',management:'管理费',travel:'交通差旅',tax:'税金（3.3%）',accountManager:'大客户经理提成',commission:'项目交付提成',salary:'咨询师工资成本',exception:'项目异常费用',yearBonus:'年终奖分摊',fixed:'固定成本分摊',other:'其他成本'}).map(([key,label])=>[label,r=>costValue(r,key),true]),
         ['总成本',r=>amount(r,r.cost),true],['税前利润',r=>amount(r,add(r.selected,'pretax')),true],['所得税',r=>amount(r,r.tax),true],
         ['净利润',r=>`<span class="${r.complete?(r.net<0?'negative':'positive'):''}">${amount(r,r.net)}</span>`,true],
         ['净利率',r=>r.complete?text(p(r.margin)):'-',true],['盈亏平衡交付金额',r=>r.complete?money(r.periodBreakEven):'-',true]

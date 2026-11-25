@@ -85,7 +85,7 @@
   function rawProject(state, projectId, month) {
     const project = entity(state,'projects',projectId), missing = [], sources = [];
     const delivery = at(state.delivery,month,'projectId',projectId), income = sum(delivery);
-    const costs = {business:0, management:0, travel:0, tax:round(income * RULES.businessTax), accountManager:0, commission:0, salary:0, exception:0, yearBonus:0, fixed:0};
+    const costs = {business:0, management:0, travel:0, tax:round(income * RULES.businessTax), accountManager:0, commission:0, salary:0, exception:0, yearBonus:0, fixed:0, other:0};
     delivery.forEach(r=>sources.push(source(r,'确认交付收入','delivery')));
     at(state.actualCosts,month,'projectId',projectId).forEach(r=> { if (Object.hasOwn(costs,r.category)) costs[r.category] = round(costs[r.category]+r.amount); sources.push(source(r,'实际费用：'+r.category,'actualCosts')); });
     at(state.expenses,month,'projectId',projectId).forEach(r=> { if (Object.hasOwn(costs,r.category)) costs[r.category] = round(costs[r.category]+r.amount); sources.push(source(r,'预计费用：'+r.category,'expenses')); });
@@ -167,9 +167,10 @@
       return {projectId,income:round(income*ratio),hours,salary:allocated,commission:sum(at(state.commissions,month,'personId',personId).filter(r=>r.projectId===projectId)),ratio};
     });
     const income=sum(projects,'income'),commission=sum(at(state.commissions,month,'personId',personId)),bonus=sum(at(state.bonuses,month,'personId',personId));
-    const costs={tax:round(income*RULES.businessTax),salary,commission,bonus,management:round(income*RULES.personalManagement)};
+    const costs={tax:round(income*RULES.businessTax),salary,commission,bonus,other:sum(at(state.expenses,month,'personId',personId).filter(r=>r.category==='personOther'&&!r.projectId)),management:round(income*RULES.personalManagement)};
     const totalCost=round(Object.values(costs).reduce((a,b)=>a+b,0)),pretax=round(income-totalCost),tax=round(Math.max(pretax,0)*RULES.projectIncomeTax);
     const reasons=[],be=breakEven(income,round(costs.salary+costs.commission+costs.bonus),round(costs.tax+costs.management),reasons);
+    at(state.expenses,month,'personId',personId).filter(r=>r.category==='personOther'&&!r.projectId).forEach(r=>sources.push(source(r,'人员其他成本','expenses')));
     salaries.forEach(r=>sources.push(source(r,'固定人工（工资＋社保公积金）','salaries')));
     ['commissions','bonuses'].forEach(k=>at(state[k],month,'personId',personId).forEach(r=>sources.push(source(r,{commissions:'人员提成',bonuses:'人员奖金'}[k],k))));
     const allocatedSalary=sum(projects,'salary'),hours=hoursFor(state,personId,null,month);
@@ -257,13 +258,13 @@
     n.expenses=n.expenses.filter(r=>r.projectId!==projectId||r.month!==month||!['accountManager','yearBonus'].includes(r.category));
     ['accountManager','yearBonus'].forEach(k=>n.expenses.push({id:'expense-'+n.revision+'-'+k,projectId,month,category:k,amount:round(settings.expenses[k])}));return n;
   }
-  const importTypes={salary:{collection:'salaries',person:true},commission:{collection:'commissions',person:true,project:true},bonus:{collection:'bonuses',person:true},exception:{collection:'expenses',project:true,category:'exception'},fixed:{collection:'expenses',project:true,category:'fixed'},travel:{collection:'actualCosts',project:true,category:'travel'},accountManager:{collection:'expenses',project:true,category:'accountManager'}};
+  const importTypes={salary:{collection:'salaries',person:true},commission:{collection:'commissions',person:true,project:true},bonus:{collection:'bonuses',person:true},exception:{collection:'expenses',project:true,category:'exception'},fixed:{collection:'expenses',project:true,category:'fixed'},travel:{collection:'actualCosts',project:true,category:'travel'},accountManager:{collection:'expenses',project:true,category:'accountManager'},projectOther:{collection:'expenses',project:true,category:'other'},personOther:{collection:'expenses',person:true,category:'personOther'}};
   function hash(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16);}
   function fingerprint(preview){return hash(JSON.stringify({type:preview.type,month:preview.month,revision:preview.revision,rows:preview.rows,errors:preview.errors}));}
   function previewImport(state,type,month,rows){
     const config=importTypes[type],errors=[],seen=new Set();
     if(!config)fail('不支持的导入类型');
-    try{monthOK(state,month,true);}catch(e){errors.push(e.message);}
+    try{monthOK(state,month,true);if(accountingSnapshot(state,month)||Object.keys(state.accountingSnapshots||{}).some(m=>m>month))fail('该月份已固化，不能导入数据');}catch(e){errors.push(e.message);}
     const result=rows.map((r,i)=>{
       const personId=config.person?r.personId:undefined,projectId=config.project?r.projectId:undefined,key=[type,month,projectId||'',personId||''].join('|');
       const old=state[config.collection].find(x=>x.month===month&&(!config.person||x.personId===personId)&&(!config.project||x.projectId===projectId)&&(!config.category||x.category===config.category))||(type==='salary'&&state.people.some(p=>p.id===personId)?fixedPay(state,personId,month).rows[0]:undefined);

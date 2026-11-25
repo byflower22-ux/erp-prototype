@@ -227,6 +227,33 @@ def build_from_user_baseline():
         namespaces = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
         start = next(i for i, child in enumerate(children)
                      if "".join(child.xpath(".//w:t/text()", namespaces=namespaces)) == "5. 项目分析")
+        # Keep user-edited chapters intact except these later, explicitly
+        # requested schedule / pay-cycle paragraphs maintained in Markdown.
+        approved_prefixes = [
+            "• 统计随当前人员及本周／本月变化",
+            "• 新增、编辑必填默认月固定工资",
+            "• 月度固定成本弹窗按年份展示",
+            "• 已手工维护的月度金额",
+            "• 固定人工只通过本模块维护",
+            "• 新增、编辑提供开始月份和结束月份",
+            "• 人员奖金",
+        ]
+        prefix_source = source.split("## 5. 项目分析", 1)[0].splitlines()
+        for child in children[:start]:
+            if child.tag != qn("w:p"):
+                continue
+            old_text = "".join(child.xpath(".//w:t/text()", namespaces=namespaces))
+            marker = next((p for p in approved_prefixes if old_text.startswith(p)), None)
+            if not marker:
+                continue
+            replacement_line = next((line for line in prefix_source if line.startswith(marker)), None)
+            if replacement_line is None:
+                raise ValueError("缺少已批准更新的段落：" + marker)
+            if old_text != replacement_line:
+                nodes_text = child.xpath(".//w:t", namespaces=namespaces)
+                nodes_text[0].text = replacement_line
+                for text_node in nodes_text[1:]:
+                    text_node.text = ""
         end = next((i for i in range(start + 1, len(children))
                     if children[i].tag == qn("w:sectPr")), len(children))
         for child in children[start:end]:
