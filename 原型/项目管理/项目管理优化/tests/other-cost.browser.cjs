@@ -18,7 +18,7 @@ const entry=process.env.ERP_ENTRY_URL||pathToFileURL(path.resolve(__dirname,'../
   await f.locator('[data-action="manager-view"][data-view="accounting"]').click();assert.match(await f.locator('.project-ledger thead').innerText(),/其他成本/);
   const exported=await download(f.locator('[data-action="export-analysis"]'));assert.equal(exported.worksheets[0].getRow(4).cellCount,expected);assert.match(exported.worksheets[0].getRow(4).values.join('|'),/其他成本/);
   const spans=await f.locator('.project-ledger thead tr').first().locator('th').evaluateAll(nodes=>nodes.reduce((sum,n)=>sum+n.colSpan,0));assert.equal(spans,expected);
-  await f.locator('[data-filter="periodMode"][data-value="cumulative"]').click();const annual=await download(f.locator('[data-action="export-analysis"]'));assert.equal(annual.worksheets[0].getRow(4).cellCount,scope==='person'?28:38);
+  await f.locator('[data-filter="periodMode"][data-value="cumulative"]').click();const annual=await download(f.locator('[data-action="export-analysis"]'));assert.equal(annual.worksheets[0].getRow(4).cellCount,scope==='person'?29:38);
  }
  assert.deepEqual(errors,[]);if(out){fs.mkdirSync(out,{recursive:true});await page.screenshot({path:path.join(out,'其他成本与核算明细.png')});fs.writeFileSync(path.join(out,'other-cost-report.json'),JSON.stringify({entry,date:new Date().toISOString(),errors,checks:['项目及人员其他成本模板独立生成','真实上传、差异预览及确认写入','成本列与表头分组一致','月度和年度导出包含其他成本']},null,2));}console.log('PASS both other-cost selectors, scoped template downloads, real Excel upload/preview/confirm, ledger field and group alignment, monthly/annual export, no JS errors');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

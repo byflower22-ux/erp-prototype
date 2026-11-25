@@ -623,7 +623,7 @@
   function showManagerAlerts(level='all'){const result=ProjectManagementInsights.alertDialog(ctx(),level);openDialog(result.title,result.html,null,true,'管理驾驶舱 · 预警与行动');}
   function showError(error){const el=document.getElementById('form-error'),weekError=content.querySelector('#week-error'),createError=content.querySelector('#delivery-create-error');if(dialog.open&&el){el.textContent=error.message;el.hidden=false;}else if(!dialog.open&&createError){deliveryCreateDraft.error=error.message;createError.textContent=error.message;createError.hidden=false;createError.scrollIntoView({block:'nearest'});}else if(!dialog.open&&weekError){weekError.textContent=error.message;weekError.hidden=false;}else toast(error.message,true);}
   function guard(fn){try{const value=fn();if(value?.catch)value.catch(showError);}catch(error){showError(error);}}
-  const statusFilterConfig=kind=>kind==='data'?{id:'data-status-popover',key:'projectLedgerDataStatuses',legacy:'projectLedgerColumn_数据状态'}:{id:'project-status-popover',key:'projectLedgerStatuses',legacy:'projectLedgerColumn_项目状态'};
+  const statusFilterConfig=kind=>kind==='data'?{id:'data-status-popover',key:currentTab()?.nav==='person-analysis'?'personLedgerDataStatuses':'projectLedgerDataStatuses',legacy:currentTab()?.nav==='person-analysis'?'personLedgerColumn_数据状态':'projectLedgerColumn_数据状态'}:{id:'project-status-popover',key:'projectLedgerStatuses',legacy:'projectLedgerColumn_项目状态'};
   let statusFilterScrollPositions=new Map();
   function closeProjectStatusFilter(){
     content.querySelectorAll('.ledger-status-popover').forEach(popover=>popover.hidden=true);
