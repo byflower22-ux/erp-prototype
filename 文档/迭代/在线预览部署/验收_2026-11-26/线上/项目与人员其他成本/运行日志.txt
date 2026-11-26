@@ -1,0 +1,1 @@
+PASS both other-cost selectors, scoped template downloads, real Excel upload/preview/confirm, ledger field and group alignment, monthly/annual export, no JS errors

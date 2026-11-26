@@ -1,0 +1,1 @@
+PASS browser: effective pay, frozen protection, cycle validation, monthly/annual visibility, project lifetime overview/details/export, no JS errors
