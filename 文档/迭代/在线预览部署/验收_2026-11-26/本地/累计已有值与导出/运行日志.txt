@@ -1,0 +1,1 @@
+PASS browser: project annual/lifetime and person annual details and Excel omit data status and missing labels; monthly retains data status and missing notices; no JS errors

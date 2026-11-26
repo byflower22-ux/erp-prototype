@@ -310,14 +310,14 @@
     if(employee()){personId=currentUserId;tabs=tabs.filter(t=>t.nav==='schedule');active=tabs[0]?.key||null;navigate('schedule');}else render();
   }
   function weekKey(){return (scheduleAdmin()?'admin:':'self:')+personId;}
-  function weekInput(){const key=weekKey();if(!weekInputs.has(key))weekInputs.set(key,{values:{},original:{},extra:[],meta:{},slots:{},dirty:false,editing:false,error:''});const w=weekInputs.get(key);if(w.editing===undefined)w.editing=!!w.dirty;return w;}
+  function weekInput(){const key=weekKey();if(!weekInputs.has(key))weekInputs.set(key,{values:{},original:{},extra:[],meta:{},slots:{},dirty:false,editing:false,error:''});const w=weekInputs.get(key);if(w.editing===undefined)w.editing=!!w.dirty;w.removed||={};return w;}
   function beginScheduleEdit(){
     const w=weekInput();w.editing=true;requireScheduleEdit();filters.mobileScheduleTab='entry';render();
     content.querySelector('[data-week-cell]:not(:disabled)')?.focus({preventScroll:true});
   }
   function discardScheduleEdit(){
     const w=weekInput(),dates=ProjectSchedule.weekData(ctx()).dates;
-    for(const map of [w.values,w.original,w.meta,w.slots])for(const key of Object.keys(map))if(dates.includes(JSON.parse(key)[2]))delete map[key];
+    for(const map of [w.values,w.original,w.meta,w.slots,w.removed])for(const key of Object.keys(map))if(dates.includes(JSON.parse(key)[2]))delete map[key];
     for(const date of dates)if(w.mobileRows)delete w.mobileRows[date];
     w.editing=false;w.error='';filters.mobileProjectPicker=null;render();
   }
@@ -352,6 +352,21 @@
     const w=weekInput(),k=ProjectSchedule.dayKey(projectId,memberRole,date),ids=d.entries({projectId,role:memberRole},date).map(r=>r.workItemId);ids.push('work-'+crypto.randomUUID());w.slots[k]=ids;render();
     const last=[...content.querySelectorAll('[data-week-cell]')].filter(el=>{const [p,r,day]=JSON.parse(el.dataset.weekCell);return p===projectId&&r===memberRole&&day===date;}).at(-1);last?.focus();
   }
+  function removeCellEntry(key){
+    requireScheduleEdit();
+    const [projectId,role,date,workItemId]=JSON.parse(key),d=ProjectSchedule.weekData(ctx()),m={projectId,role};
+    if(!d.working(date)||d.locked(date))throw Error('该日期不可填报');
+    const entries=d.entries(m,date);if(entries.length<=1)throw Error('至少保留一条工时事项');
+    if(!entries.some(entry=>entry.key===key))return;
+    const w=weekInput(),saved=d.originalRows({...m,workItemId},date);
+    if(saved.length)setWeekCell(key,'');
+    else{delete w.values[key];delete w.meta[key];delete w.original[key];}
+    w.removed[key]=true;
+    const day=ProjectSchedule.dayKey(projectId,role,date);
+    w.slots[day]=entries.filter(entry=>entry.key!==key).map(entry=>entry.workItemId);
+    w.error='';render();refreshWeek();
+    const focus=[...content.querySelectorAll('[data-week-cell]')].find(el=>{const [p,r,day]=JSON.parse(el.dataset.weekCell);return p===projectId&&r===role&&day===date;});focus?.focus({preventScroll:true});
+  }
   function refreshWeek(){const d=ProjectSchedule.weekData(ctx());weekInput().dirty=d.pending.length>0;ProjectSchedule.refreshWeek(ctx());publish();}
   function saveWeek(){
     const w=weekInput();try{
@@ -359,7 +374,7 @@
       if([...content.querySelectorAll('[data-week-cell]')].some(el=>el.validity.badInput))throw Error('请填写有效数字，工时按 0.5 小时填写');
       const d=ProjectSchedule.weekData(ctx());if(!d.changes.length){discardScheduleEdit();return true;}
       for(const c of d.changes){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId),current=JSON.stringify(state.times.filter(r=>r.personId===personId&&ProjectSchedule.matches(r,c)&&r.date===c.date));if(w.original[key]!==current)throw Error(c.date+' 的记录已变化，请撤销未保存修改后重新填写');}
-      persist(M.saveWeekTimes(state,personId,d.changes));for(const c of d.changes){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId);delete w.values[key];delete w.original[key];delete w.meta[key];}for(const key of Object.keys(w.slots))if(d.dates.includes(JSON.parse(key)[2]))delete w.slots[key];w.editing=false;w.error='';render();toast(d.periodName+'工时已保存');return true;
+      persist(M.saveWeekTimes(state,personId,d.changes));for(const c of d.changes){const key=ProjectSchedule.cellKey(c.projectId,c.role,c.date,c.workItemId);delete w.values[key];delete w.original[key];delete w.meta[key];}for(const map of [w.slots,w.removed])for(const key of Object.keys(map))if(d.dates.includes(JSON.parse(key)[2]))delete map[key];w.editing=false;w.error='';render();toast(d.periodName+'工时已保存');return true;
     }catch(error){w.error=error.message;const el=content.querySelector('#week-error');if(el){el.hidden=false;el.textContent=error.message;if(ctx().mobile)toast(error.message,true);}else throw error;return false;}
   }
   function mobileFormContext(){
@@ -733,9 +748,10 @@
       }
       if(a==='mobile-clear'){requireScheduleEdit();setWeekCell(target.dataset.key,'');weekInput().meta[target.dataset.key]={activity:'',description:''};render();}
       if(a==='cell-add')addCellEntry(target.dataset.project,target.dataset.role,target.dataset.date);
+      if(a==='cell-remove')removeCellEntry(target.dataset.key);
       if(a==='week-step')applyFilter('date',addDays(filters.date,Number(target.dataset.step)));
       if(a==='week-current')applyFilter('date','2026-11-09');
-      if(a==='week-revert'){const w=weekInput(),dates=ProjectSchedule.weekData(ctx()).dates;for(const key of Object.keys(w.values))if(dates.includes(JSON.parse(key)[2])){delete w.values[key];delete w.original[key];delete w.meta[key];}for(const key of Object.keys(w.slots))if(dates.includes(JSON.parse(key)[2]))delete w.slots[key];for(const date of dates)if(w.mobileRows)delete w.mobileRows[date];w.error='';render();}
+      if(a==='week-revert'){const w=weekInput(),dates=ProjectSchedule.weekData(ctx()).dates;for(const key of Object.keys(w.values))if(dates.includes(JSON.parse(key)[2])){delete w.values[key];delete w.original[key];delete w.meta[key];}for(const map of [w.slots,w.removed])for(const key of Object.keys(map))if(dates.includes(JSON.parse(key)[2]))delete map[key];for(const date of dates)if(w.mobileRows)delete w.mobileRows[date];w.error='';render();}
       if(a==='week-to-week'){filters.scheduleView='week';render();}
       if(a==='fill-period'){filters.scheduleView=target.dataset.mode;filters.scheduleStats=target.dataset.mode;filters.mobileCalendarOpen=true;render();}
       if(a==='period-step'){const direction=Number(target.dataset.direction);if(filters.scheduleView==='month'){const index=state.months.indexOf(month)+direction;if(index<0||index>=state.months.length){toast('已到演示数据边界');return;}applyFilter('month',state.months[index]);}else applyFilter('date',addDays(filters.date,7*direction));}
